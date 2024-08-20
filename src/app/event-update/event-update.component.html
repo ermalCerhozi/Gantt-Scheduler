@@ -1,0 +1,67 @@
+<h3 mat-dialog-title>
+    Update event
+</h3>
+<mat-dialog-content>
+    <form [formGroup]="form" class="form-container">
+        <div class="form-row">
+            <mat-form-field appearance="outline" class="half-width">
+                <mat-label>Title</mat-label>
+                <input matInput formControlName="title">
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="half-width">
+                <mat-label>Select Row</mat-label>
+                <mat-select formControlName="rowId">
+                    @for (item of data.rows; track $index) {
+                        <mat-option [value]="item.id">{{item.title}}</mat-option>
+                    }
+                </mat-select>
+            </mat-form-field>
+        </div>
+        <div class="form-row">
+            <mat-form-field appearance="outline">
+                <mat-label>Start Date</mat-label>
+                <input matInput [matDatepicker]="startDate" formControlName="startDate">
+                <mat-datepicker-toggle matIconSuffix [for]="startDate"></mat-datepicker-toggle>
+                <mat-datepicker #startDate></mat-datepicker>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+                <mat-label>End Date</mat-label>
+                <input matInput [matDatepicker]="endDate" formControlName="endDate">
+                <mat-datepicker-toggle matIconSuffix [for]="endDate"></mat-datepicker-toggle>
+                <mat-datepicker #endDate></mat-datepicker>
+            </mat-form-field>
+        </div>
+        <div class="form-row">
+            <mat-form-field appearance="outline" class="half-width-calc">
+                <mat-label>Start time</mat-label>
+                <input type="time" matInput placeholder="start time" formControlName="startTime">
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="half-width-calc">
+                <mat-label>End time</mat-label>
+                <input type="time" matInput placeholder="end time" formControlName="endTime">
+            </mat-form-field>
+        </div>
+        <div class="color-picker-container">
+            <button type="button" color="primary" mat-button (click)="color.click()">Select Color</button>
+            <input type="color" class="hidden-color-input" #color formControlName="status">
+            <p class="color-display">
+                Status color: 
+                @if (colorValue != null) {
+                    <span class="color-box" [style.backgroundColor]="colorValue"></span>
+                }
+                {{colorValue == null ? "---" : colorValue}} 
+            </p>
+        </div>
+        <div class="form-row">
+            <mat-checkbox color="accent" formControlName="allDay">All Day Event?</mat-checkbox>
+        </div>
+    </form>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+    <button mat-button (click)="onClose()">
+        Close
+    </button>
+    <button mat-flat-button color="primary" (click)="onSubmit()" [disabled]="form.invalid">
+        Submit
+    </button>
+</mat-dialog-actions>

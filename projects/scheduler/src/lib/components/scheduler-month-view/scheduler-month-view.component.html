@@ -1,0 +1,10 @@
+<gantt-chart
+    [TableRows]="tableRows"
+    [Events]="events"
+    [Title]="title"
+    [View]="'month'"
+    [Month]="month"
+    [Year]="year"
+    [DaysOfMonth]="daysOfMonth"
+    (eventClicked)="updateEvent($event)"
+></gantt-chart>

@@ -1,0 +1,50 @@
+.form-container {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: start;
+    padding: 1rem;
+}
+
+.form-row {
+    display: flex;
+    flex-direction: row;
+    align-items: start;
+    justify-content: start;
+    gap: 1rem;
+}
+
+.half-width {
+    width: 50%;
+}
+
+.half-width-calc {
+    width: calc(50% - 0.5rem);
+}
+
+.color-picker-container {
+    display: flex;
+    flex-direction: column;
+    align-items: start;
+    justify-content: start;
+    gap: 0.25rem;
+}
+
+.hidden-color-input {
+    visibility: hidden;
+    width: 0;
+    height: 0;
+}
+
+.color-display {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: start;
+    gap: 0.5rem;
+}
+
+.color-box {
+    width: 15px;
+    height: 15px;
+}

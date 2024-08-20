@@ -1,0 +1,37 @@
+<div class="header">
+    <mat-button-toggle-group name="fontStyle" aria-label="Font Style" [(ngModel)]="activeView">
+        <mat-button-toggle *ngFor="let item of viewButtons" [value]="item.id" (click)="viewChangeHandler(item.id)">
+          {{item.name}}
+        </mat-button-toggle>
+    </mat-button-toggle-group>
+
+    <div class="navigation-buttons">
+        <button mat-button (click)="previousHandler()">
+        <mat-icon>keyboard_arrow_left</mat-icon>
+        </button>
+        <button mat-button (click)="todayHandler()">Today</button>
+        <button mat-button (click)="nextHandler()">
+        <mat-icon>keyboard_arrow_right</mat-icon>
+        </button>
+    </div>
+</div>
+  
+<div class="content">
+    @switch(activeView) {
+        @case ('day') {
+            <scheduler-day-view
+                (eventClicked)="updateEvent($event)"
+            ></scheduler-day-view>
+        }
+        @case ('week') {
+            <scheduler-week-view
+                (eventClicked)="updateEvent($event)"
+            ></scheduler-week-view>
+        }
+        @case ('month') {
+            <scheduler-month-view
+                (eventClicked)="updateEvent($event)"
+            ></scheduler-month-view>
+        }
+    }
+</div>
