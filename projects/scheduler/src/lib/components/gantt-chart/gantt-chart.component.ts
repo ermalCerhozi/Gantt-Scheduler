@@ -47,6 +47,7 @@ export class GanttChartComponent implements AfterViewInit, OnChanges {
     startX = 0;
     startY = 0;
     selectedElement: any;
+    isDragging = false;
 
     constructor(private el: ElementRef) { }
 
@@ -127,6 +128,7 @@ export class GanttChartComponent implements AfterViewInit, OnChanges {
         this.drawEvents();
         this.vertLabelsSvg();
         this.draggableEvents();
+        this.resizableEvents();
 
         this.svg.append("text")
             .text(this.title)
@@ -137,21 +139,59 @@ export class GanttChartComponent implements AfterViewInit, OnChanges {
             .attr("fill", "#009FFC");
     }
 
+    /*
+    * Add a new rect elemtn in the place the elemnt is placed
+    * when moving move the text as well
+    */
     draggableEvents() {
-        const cards = Array.from(this.el.nativeElement.querySelectorAll('rect') as NodeListOf<SVGRectElement>);
-        
+        const cards = Array.from(this.chartContainer.nativeElement.querySelectorAll('rect#element') as NodeListOf<SVGRectElement>);
         cards.forEach((card: SVGRectElement) => {
             card.addEventListener('mousedown', (e: MouseEvent) => {
                 this.selectedElement = e.target as SVGRectElement;
-                this.startX = e.clientX - this.selectedElement.getBoundingClientRect().left;
-                this.startY = e.clientY - this.selectedElement.getBoundingClientRect().top;
+                this.startX = e.clientX;
+                this.startY = e.clientY;
+                const initialX = parseFloat(this.selectedElement.getAttribute('x') || '0');
+                const initialY = parseFloat(this.selectedElement.getAttribute('y') || '0');
     
                 const onMouseMove = (moveEvent: MouseEvent) => {
                     if (this.selectedElement) {
+                        this.isDragging = true;
                         const dx = moveEvent.clientX - this.startX;
                         const dy = moveEvent.clientY - this.startY;
-                        this.selectedElement.setAttribute('x', dx.toString());
-                        this.selectedElement.setAttribute('y', dy.toString());
+                        let newX = initialX + dx;
+                        let newY = initialY + dy;
+    
+                        // Snap logic
+                        if (dy + 14.5 < 0) { // Dragged upwards
+                            newY = initialY + Math.floor(dy / 29) * 29;
+                        } else if (dy + 14.5 > 0) { // Dragged downwards
+                            newY = initialY + Math.ceil(dy / 29) * 29;
+                        }
+    
+                        // Ensure the element does not go inside the top padding
+                        if (newY < this.topPadding) {
+                            newY = this.topPadding;
+                        }
+    
+                        // Ensure the element does not go below the end of the chartContainer
+                        const chartHeight = this.chartContainer.nativeElement.getBoundingClientRect().height;
+                        const elementHeight = this.selectedElement.getBoundingClientRect().height;
+                        if (newY + elementHeight > chartHeight ) {
+                            newY = chartHeight - elementHeight - 8;
+                        }
+
+                        // Ensure the element does not go outside the chart boundaries
+                        const chartWidth = this.chartContainer.nativeElement.getBoundingClientRect().width;
+                        const elementWidth = this.selectedElement.getBoundingClientRect().width;
+                        if (newX + elementWidth > chartWidth) {
+                            newX = chartWidth - elementWidth;
+                        }
+                        if (newX < 0) {
+                            newX = 0;
+                        }
+
+                        this.selectedElement.setAttribute('x', newX.toString());
+                        this.selectedElement.setAttribute('y', newY.toString());
                     }
                 };
     
@@ -165,6 +205,10 @@ export class GanttChartComponent implements AfterViewInit, OnChanges {
                 document.addEventListener('mouseup', onMouseUp);
             });
         });
+    }
+
+    resizableEvents() { 
+        // TODO: implement resizable events
     }
 
     makeGrid() {
@@ -228,7 +272,7 @@ export class GanttChartComponent implements AfterViewInit, OnChanges {
             .attr("id", "element")
             .attr("rx", 14)
             .attr("ry", 500)
-            .attr("x", (d: any) => {
+            .attr("x", (d: any) => {        
                 return this.timeScale(this.dateFormat(d.startDate));
             })
             .attr("y", (d: any, i: any) => {
@@ -265,7 +309,9 @@ export class GanttChartComponent implements AfterViewInit, OnChanges {
             .attr("fill", "#fff");
 
         innerRects.on('click', (data: any) => {
-            this.eventClicked.emit(data.srcElement.__data__);
+            if (!this.isDragging) {
+                this.eventClicked.emit(data.srcElement.__data__);
+            }
         });
     }
 
