@@ -4,11 +4,10 @@ import { SchedulerEventHandler } from '../../core/schedulerEventHandler';
 import { GanttChartComponent } from '../gantt-chart/gantt-chart.component';
 
 @Component({
-  selector: 'scheduler-week-view',
-  templateUrl: './scheduler-week-view.component.html',
-  styleUrl: './scheduler-week-view.component.scss',
-  standalone: true,
-  imports: [GanttChartComponent],
+    selector: 'scheduler-week-view',
+    templateUrl: './scheduler-week-view.component.html',
+    styleUrl: './scheduler-week-view.component.scss',
+    imports: [GanttChartComponent]
 })
 export class SchedulerWeekViewComponent extends SchedulerBaseViewComponent implements SchedulerEventHandler {
     @Output('eventClicked') eventClicked = new EventEmitter<any>();

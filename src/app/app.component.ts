@@ -8,11 +8,10 @@ import { TableRow } from './interfaces/tableRow';
 import { MatIconModule } from '@angular/material/icon';
 
 @Component({
-  selector: 'app-root',
-  standalone: true,
-  templateUrl: './app.component.html',
-  styleUrl: './app.component.scss',
-  imports: [MatIconModule, ResourceSchedulerComponent, MatButtonModule],
+    selector: 'app-root',
+    templateUrl: './app.component.html',
+    styleUrl: './app.component.scss',
+    imports: [MatIconModule, ResourceSchedulerComponent, MatButtonModule]
 })
 export class AppComponent {
     dialog = inject(MatDialog);

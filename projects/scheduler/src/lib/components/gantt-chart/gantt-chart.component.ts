@@ -3,12 +3,11 @@ import { RouterOutlet } from "@angular/router";
 import * as d3 from 'd3';
 
 @Component({
-  selector: 'gantt-chart',
-  templateUrl: './gantt-chart.component.html',
-  styleUrl: './gantt-chart.component.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
-  imports: [],
+    selector: 'gantt-chart',
+    templateUrl: './gantt-chart.component.html',
+    styleUrl: './gantt-chart.component.scss',
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    imports: []
 })
 export class GanttChartComponent implements AfterViewInit, OnChanges {
     @ViewChild('chart') private chartContainer!: ElementRef;

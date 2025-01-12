@@ -18,7 +18,6 @@ import { MatNativeDateModule } from '@angular/material/core';
 
 @Component({
     selector: 'scheduler',
-    standalone: true,
     imports: [
         MatIconModule,
         SchedulerDayViewComponent,
@@ -40,7 +39,7 @@ import { MatNativeDateModule } from '@angular/material/core';
         TableRowSourceService,
     ],
     templateUrl: './scheduler.component.html',
-    styleUrl: './scheduler.component.scss',
+    styleUrl: './scheduler.component.scss'
 })
 
 export class ResourceSchedulerComponent implements OnInit, OnChanges {

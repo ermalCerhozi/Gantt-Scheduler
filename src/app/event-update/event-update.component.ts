@@ -15,7 +15,6 @@ import { MatNativeDateModule, provideNativeDateAdapter } from '@angular/material
     selector: 'app-event-update',
     templateUrl: './event-update.component.html',
     styleUrl: './event-update.component.scss',
-    standalone: true,
     imports: [
         MatDialogModule,
         MatFormFieldModule,
@@ -24,10 +23,10 @@ import { MatNativeDateModule, provideNativeDateAdapter } from '@angular/material
         ReactiveFormsModule,
         MatSelectModule,
         MatDatepickerModule,
-        MatNativeDateModule,    
+        MatNativeDateModule,
         MatCheckboxModule,
     ],
-    providers: [provideNativeDateAdapter()],
+    providers: [provideNativeDateAdapter()]
 })
 export class EventUpdateComponent {
     form: FormGroup = new FormGroup({

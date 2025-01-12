@@ -14,7 +14,6 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
     selector: 'app-event-create',
     templateUrl: './event-create.component.html',
     styleUrl: './event-create.component.scss',
-    standalone: true,
     imports: [
         MatDialogModule,
         MatFormFieldModule,
@@ -23,10 +22,10 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
         ReactiveFormsModule,
         MatSelectModule,
         MatDatepickerModule,
-        MatNativeDateModule,    
+        MatNativeDateModule,
         MatCheckboxModule,
     ],
-    providers: [provideNativeDateAdapter()],
+    providers: [provideNativeDateAdapter()]
 })
 export class EventCreateComponent {
     form: FormGroup = new FormGroup({

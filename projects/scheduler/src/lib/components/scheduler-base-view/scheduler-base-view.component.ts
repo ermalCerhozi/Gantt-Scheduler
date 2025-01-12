@@ -10,16 +10,15 @@ import { SchedulerEventHandler } from '../../core/schedulerEventHandler';
   * This contains the base logic for the scheduler that will be tailored to the specific view day, week, month.
 */
 @Component({
-  selector: 'lib-scheduler-base-view',
-  template: ``,
-  styles: ``,
-  standalone: true,
-  imports: [],
-  providers: [
-    DateChangeService,
-    StaticValuesService,
-    TableRowSourceService
-  ]
+    selector: 'lib-scheduler-base-view',
+    template: ``,
+    styles: ``,
+    imports: [],
+    providers: [
+        DateChangeService,
+        StaticValuesService,
+        TableRowSourceService
+    ]
 })
 export class SchedulerBaseViewComponent implements OnInit, OnDestroy, SchedulerEventHandler {
     private _weekends: string[] = [];

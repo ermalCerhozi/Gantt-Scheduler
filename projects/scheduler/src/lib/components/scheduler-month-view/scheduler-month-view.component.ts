@@ -4,11 +4,10 @@ import { SchedulerEventHandler } from '../../core/schedulerEventHandler';
 import { GanttChartComponent } from '../gantt-chart/gantt-chart.component';
 
 @Component({
-  selector: 'scheduler-month-view',
-  templateUrl: './scheduler-month-view.component.html',
-  styleUrl: './scheduler-month-view.component.css',
-  standalone: true,
-  imports: [GanttChartComponent],
+    selector: 'scheduler-month-view',
+    templateUrl: './scheduler-month-view.component.html',
+    styleUrl: './scheduler-month-view.component.css',
+    imports: [GanttChartComponent]
 })
 export class SchedulerMonthViewComponent extends SchedulerBaseViewComponent implements SchedulerEventHandler {
     @Output('eventClicked') eventClicked = new EventEmitter<any>();

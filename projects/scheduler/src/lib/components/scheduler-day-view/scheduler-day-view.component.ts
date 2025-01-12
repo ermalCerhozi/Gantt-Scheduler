@@ -3,11 +3,10 @@ import { SchedulerBaseViewComponent } from '../../components/scheduler-base-view
 import { GanttChartComponent } from '../gantt-chart/gantt-chart.component';
 
 @Component({
-  selector: 'scheduler-day-view',
-  templateUrl: './scheduler-day-view.component.html',
-  styles: ``,
-  standalone: true,
-  imports: [GanttChartComponent],
+    selector: 'scheduler-day-view',
+    templateUrl: './scheduler-day-view.component.html',
+    styles: ``,
+    imports: [GanttChartComponent]
 })
 export class SchedulerDayViewComponent extends SchedulerBaseViewComponent {
     @Output('eventClicked') eventClicked = new EventEmitter<any>();
