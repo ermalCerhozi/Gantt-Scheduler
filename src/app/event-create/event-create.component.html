@@ -42,7 +42,7 @@
             </mat-form-field>
         </div>
         <div class="color-picker-container">
-            <button type="button" color="primary" mat-button (click)="color.click()">Select Color</button>
+            <button type="button" color="primary" mat-stroked-button (click)="color.click()">Select Color</button>
             <input type="color" class="hidden-color-input" #color formControlName="color">
             <p class="color-display">
                 @if (colorValue != null) {
@@ -55,9 +55,9 @@
 </mat-dialog-content>
 <mat-dialog-actions align="end">
     <button mat-button (click)="onClose()">
-        Close
+        cancel
     </button>
     <button mat-flat-button color="primary" (click)="onSubmit()" [disabled]="form.invalid">
-        Submit
+        Create
     </button>
 </mat-dialog-actions>

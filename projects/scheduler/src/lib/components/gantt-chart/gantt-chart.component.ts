@@ -1,12 +1,10 @@
-import { AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, EventEmitter, Input, OnChanges, Output, SimpleChanges, ViewChild } from "@angular/core";
-import { RouterOutlet } from "@angular/router";
+import { AfterViewInit, Component, ElementRef, EventEmitter, Input, OnChanges, Output, SimpleChanges, ViewChild } from "@angular/core";
 import * as d3 from 'd3';
 
 @Component({
     selector: 'gantt-chart',
     templateUrl: './gantt-chart.component.html',
     styleUrl: './gantt-chart.component.scss',
-    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: []
 })
 export class GanttChartComponent implements AfterViewInit, OnChanges {
