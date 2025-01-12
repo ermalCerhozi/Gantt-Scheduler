@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output } from '@angular/core';
+import { Component, EventEmitter, Output, ViewChild } from '@angular/core';
 import { SchedulerBaseViewComponent } from '../scheduler-base-view/scheduler-base-view.component';
 import { SchedulerEventHandler } from '../../core/schedulerEventHandler';
 import { GanttChartComponent } from '../gantt-chart/gantt-chart.component';
@@ -7,10 +7,12 @@ import { GanttChartComponent } from '../gantt-chart/gantt-chart.component';
     selector: 'scheduler-month-view',
     templateUrl: './scheduler-month-view.component.html',
     styleUrl: './scheduler-month-view.component.css',
-    imports: [GanttChartComponent]
+    imports: [GanttChartComponent],
+    standalone: true
 })
 export class SchedulerMonthViewComponent extends SchedulerBaseViewComponent implements SchedulerEventHandler {
     @Output('eventClicked') eventClicked = new EventEmitter<any>();
+    @ViewChild('ganttChart') ganttChart!: GanttChartComponent;
 
     month: number = 0;
     year: number = 0;
@@ -73,6 +75,12 @@ export class SchedulerMonthViewComponent extends SchedulerBaseViewComponent impl
     override tableRowChangesHandler() {
         this.tableRows = [];
         this.tableRows = this.tableRowSourceService.getTableRows();
+    }
+
+    override downloadButtonHandler() {
+        if (this.ganttChart) {
+            this.ganttChart.generatePDF();
+        }
     }
 
     updateEvent(event: any): void {

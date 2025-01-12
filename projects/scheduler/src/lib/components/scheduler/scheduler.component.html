@@ -13,13 +13,17 @@
 
     <div class="navigation-buttons">
         <button mat-button (click)="previousHandler()">
-        <mat-icon>keyboard_arrow_left</mat-icon>
+            <mat-icon>keyboard_arrow_left</mat-icon>
         </button>
         <button mat-button (click)="todayHandler()">Today</button>
         <button mat-button (click)="nextHandler()">
-        <mat-icon>keyboard_arrow_right</mat-icon>
+            <mat-icon>keyboard_arrow_right</mat-icon>
         </button>
     </div>
+
+    <button mat-button (click)="downloadHandler()">
+        <mat-icon>download</mat-icon>
+    </button>
 </div>
   
 <div class="content">

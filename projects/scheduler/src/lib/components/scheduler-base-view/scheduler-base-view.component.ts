@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ViewChild, ElementRef } from '@angular/core';
 import { Subscription } from 'rxjs';
 
 import { DateChangeService } from '../../services/date-change.service';
@@ -13,6 +13,7 @@ import { SchedulerEventHandler } from '../../core/schedulerEventHandler';
     selector: 'lib-scheduler-base-view',
     template: ``,
     styles: ``,
+    standalone: true,
     imports: [],
     providers: [
         DateChangeService,
@@ -21,6 +22,8 @@ import { SchedulerEventHandler } from '../../core/schedulerEventHandler';
     ]
 })
 export class SchedulerBaseViewComponent implements OnInit, OnDestroy, SchedulerEventHandler {
+    @ViewChild('chart') private chartContainer!: ElementRef;
+    
     private _weekends: string[] = [];
     private _holidays: string[] = [];
 
@@ -28,6 +31,7 @@ export class SchedulerBaseViewComponent implements OnInit, OnDestroy, SchedulerE
     private prevSubscription: Subscription | null = null;
     private todaySubscription: Subscription | null = null;
     private setDateSubscription: Subscription | null = null;
+    private downloadSubscription: Subscription | null = null;
     private tableRowSubscription: Subscription | null = null;
     private eventsSubscription: Subscription | null = null;
     private holidaysSubscription: Subscription | null = null;
@@ -70,9 +74,12 @@ export class SchedulerBaseViewComponent implements OnInit, OnDestroy, SchedulerE
             this.todayButtonHandler();
             this.eventChangesHandler();
         });
-        this.setDateSubscription = this.dateChangeService.onDateChange().subscribe((date) => {
+        this.setDateSubscription = this.dateChangeService.onSetDate().subscribe((date) => {
             this.setDateButtonHandler(date);
             this.eventChangesHandler();
+        });
+        this.downloadSubscription = this.dateChangeService.onDownload().subscribe(() => {
+            this.downloadButtonHandler();
         });
         this.tableRowSubscription = this.tableRowSourceService.tableRowChanges().subscribe(() => {
             this.tableRowChangesHandler();
@@ -93,6 +100,7 @@ export class SchedulerBaseViewComponent implements OnInit, OnDestroy, SchedulerE
     previousButtonHandler() { }
     nextButtonHandler() { }
     setDateButtonHandler(date: Date) { }
+    downloadButtonHandler() { }
     eventChangesHandler() { }
     tableRowChangesHandler() { }
 
@@ -100,6 +108,8 @@ export class SchedulerBaseViewComponent implements OnInit, OnDestroy, SchedulerE
         this.nextSubscription?.unsubscribe();
         this.prevSubscription?.unsubscribe();
         this.todaySubscription?.unsubscribe();
+        this.setDateSubscription?.unsubscribe();
+        this.downloadSubscription?.unsubscribe();
         this.tableRowSubscription?.unsubscribe();
         this.eventsSubscription?.unsubscribe();
         this.holidaysSubscription?.unsubscribe();

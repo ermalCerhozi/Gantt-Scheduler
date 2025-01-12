@@ -7,7 +7,8 @@ import { GanttChartComponent } from '../gantt-chart/gantt-chart.component';
     selector: 'scheduler-week-view',
     templateUrl: './scheduler-week-view.component.html',
     styleUrl: './scheduler-week-view.component.scss',
-    imports: [GanttChartComponent]
+    imports: [GanttChartComponent],
+    standalone: true
 })
 export class SchedulerWeekViewComponent extends SchedulerBaseViewComponent implements SchedulerEventHandler {
     @Output('eventClicked') eventClicked = new EventEmitter<any>();

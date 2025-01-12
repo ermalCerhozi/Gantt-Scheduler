@@ -9,11 +9,13 @@ export class DateChangeService {
     private _prev = new Subject<void>();
     private _today = new Subject<void>();
     private _dateChange = new Subject<Date>();
+    private _download = new Subject<void>();
 
     private _next$ = this._next.asObservable();
     private _prev$ = this._prev.asObservable();
     private _today$ = this._today.asObservable();
     private _dateChange$ = this._dateChange.asObservable();
+    private _download$ = this._download.asObservable();
 
     constructor() {}
 
@@ -33,6 +35,10 @@ export class DateChangeService {
         this._dateChange.next(date);
     }
 
+    download(): void {
+        this._download.next();
+    }
+
     onNext(): Observable<void> {
         return this._next$;
     }
@@ -45,7 +51,11 @@ export class DateChangeService {
         return this._today$;
     }
 
-    onDateChange(): Observable<Date> {
+    onSetDate(): Observable<Date> {
         return this._dateChange$;
+    }
+
+    onDownload(): Observable<void> {
+        return this._download$;
     }
 }

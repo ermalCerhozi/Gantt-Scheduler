@@ -20,13 +20,12 @@ import { MatNativeDateModule } from '@angular/material/core';
     selector: 'scheduler',
     imports: [
         MatIconModule,
-        SchedulerDayViewComponent,
-        SchedulerDayViewComponent,
         CommonModule,
         MatButtonModule,
         MatIconModule,
         MatButtonToggleModule,
         MatCardModule,
+        SchedulerDayViewComponent,
         SchedulerMonthViewComponent,
         SchedulerWeekViewComponent,
         FormsModule,
@@ -39,7 +38,8 @@ import { MatNativeDateModule } from '@angular/material/core';
         TableRowSourceService,
     ],
     templateUrl: './scheduler.component.html',
-    styleUrl: './scheduler.component.scss'
+    styleUrl: './scheduler.component.scss',
+    standalone: true
 })
 
 export class ResourceSchedulerComponent implements OnInit, OnChanges {
@@ -58,6 +58,7 @@ export class ResourceSchedulerComponent implements OnInit, OnChanges {
     @Output('Today') onToday = new EventEmitter<void>();
     @Output('Next') onNext = new EventEmitter<void>();
     @Output('SetDate') onSetDate = new EventEmitter<string>();
+    @Output('Download') onDownload = new EventEmitter<void>();
     @Output('EventClick') onEventClick = new EventEmitter<any>();
 
     public viewButtons: ViewButton[] = [
@@ -101,25 +102,25 @@ export class ResourceSchedulerComponent implements OnInit, OnChanges {
     viewChangeHandler(view: any) {
         this.activeView = view;
         this.onViewChange.emit(view);
-        this.goToDateValue = null; // Clear the form field
+        this.goToDateValue = null;
     }
 
     previousHandler() {
         this.dateChangeService.previous();
         this.onPrevious.emit();
-        this.goToDateValue = null; // Clear the form field
+        this.goToDateValue = null;
     }
 
     nextHandler() {
         this.dateChangeService.next();
         this.onNext.emit();
-        this.goToDateValue = null; // Clear the form field
+        this.goToDateValue = null;
     }
 
     todayHandler() {
         this.dateChangeService.today();
         this.onToday.emit();
-        this.goToDateValue = null; // Clear the form field
+        this.goToDateValue = null;
     }
 
     updateEvent(event: any[]) {
@@ -129,5 +130,10 @@ export class ResourceSchedulerComponent implements OnInit, OnChanges {
     goToDate(date: Date) {
         this.dateChangeService.setDate(date);
         this.onSetDate.emit(this.activeView);
+    }
+
+    downloadHandler() {
+        this.dateChangeService.download();
+        this.onDownload.emit();
     }
 }

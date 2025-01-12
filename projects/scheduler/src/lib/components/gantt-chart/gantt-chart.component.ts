@@ -1,11 +1,13 @@
 import { AfterViewInit, Component, ElementRef, EventEmitter, Input, OnChanges, Output, SimpleChanges, ViewChild } from "@angular/core";
 import * as d3 from 'd3';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 @Component({
     selector: 'gantt-chart',
     templateUrl: './gantt-chart.component.html',
     styleUrl: './gantt-chart.component.scss',
-    imports: []
+    standalone: true
 })
 export class GanttChartComponent implements AfterViewInit, OnChanges {
     @ViewChild('chart') private chartContainer!: ElementRef;
@@ -55,12 +57,12 @@ export class GanttChartComponent implements AfterViewInit, OnChanges {
         this.createChart();
     }
 
-    ngOnChanges(changes: SimpleChanges): void {
-        if (changes['title'] || changes['events'] || changes['tableRow'] || changes['view']) {
-            const titleChanged = changes['title'] && changes['title'].previousValue !== changes['title'].currentValue;
-            const eventsChanged = changes['events'] && changes['events'].previousValue !== changes['events'].currentValue;
-            const tableRowChanged = changes['tableRow'] && changes['tableRow'].previousValue !== changes['tableRow'].currentValue;
-            const viewChanged = changes['view'] && changes['view'].previousValue !== changes['view'].currentValue;
+    ngOnChanges(simpleChange : SimpleChanges): void {
+        if (simpleChange['title'] || simpleChange['events'] || simpleChange['tableRow'] || simpleChange['view']) {
+            const titleChanged = simpleChange['title'] && simpleChange['title'].previousValue !== simpleChange['title'].currentValue;
+            const eventsChanged = simpleChange['events'] && simpleChange['events'].previousValue !== simpleChange['events'].currentValue;
+            const tableRowChanged = simpleChange['tableRow'] && simpleChange['tableRow'].previousValue !== simpleChange['tableRow'].currentValue;
+            const viewChanged = simpleChange['view'] && simpleChange['view'].previousValue !== simpleChange['view'].currentValue;
 
             if (titleChanged || eventsChanged || tableRowChanged || viewChanged) {
                 if (this.chartContainer && !d3.select(this.chartContainer.nativeElement).select("svg").empty()) {
@@ -441,5 +443,17 @@ export class GanttChartComponent implements AfterViewInit, OnChanges {
 
     calculateHeight(): void {
         this.height = this.topPadding + this.events.length * (this.eventsGap);
+    }
+
+    generatePDF() {
+        const gantContainer = this.chartContainer.nativeElement.parentElement;
+        if (!gantContainer) return;
+
+        html2canvas(gantContainer).then((canvas: { toDataURL: (arg0: string) => any; width: any; height: any; }) => {
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('l', 'pt', [canvas.width, canvas.height]);
+            pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+            pdf.save(`gantt-chart.pdf`);
+        });
     }
 }
