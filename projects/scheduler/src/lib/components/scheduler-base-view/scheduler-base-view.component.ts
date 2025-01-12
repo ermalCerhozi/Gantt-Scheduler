@@ -28,16 +28,17 @@ export class SchedulerBaseViewComponent implements OnInit, OnDestroy, SchedulerE
     private nextSubscription: Subscription | null = null;
     private prevSubscription: Subscription | null = null;
     private todaySubscription: Subscription | null = null;
+    private setDateSubscription: Subscription | null = null;
     private tableRowSubscription: Subscription | null = null;
     private eventsSubscription: Subscription | null = null;
     private holidaysSubscription: Subscription | null = null;
     private weekendsSubscription: Subscription | null = null;
 
     dateChangeService = inject(DateChangeService);
-    staticValues = inject(StaticValuesService);
+    staticValuesService = inject(StaticValuesService);
     tableRowSourceService = inject(TableRowSourceService);
 
-    today = this.staticValues.today();
+    today = this.staticValuesService.today();
 
     set weekends(value: any[]) {
         this._weekends = value;
@@ -70,6 +71,10 @@ export class SchedulerBaseViewComponent implements OnInit, OnDestroy, SchedulerE
             this.todayButtonHandler();
             this.eventChangesHandler();
         });
+        this.setDateSubscription = this.dateChangeService.onDateChange().subscribe((date) => {
+            this.setDateButtonHandler(date);
+            this.eventChangesHandler();
+        });
         this.tableRowSubscription = this.tableRowSourceService.tableRowChanges().subscribe(() => {
             this.tableRowChangesHandler();
             this.eventChangesHandler();
@@ -88,6 +93,7 @@ export class SchedulerBaseViewComponent implements OnInit, OnDestroy, SchedulerE
     todayButtonHandler() { }
     previousButtonHandler() { }
     nextButtonHandler() { }
+    setDateButtonHandler(date: Date) { }
     eventChangesHandler() { }
     tableRowChangesHandler() { }
 

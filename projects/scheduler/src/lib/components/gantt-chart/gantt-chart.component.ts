@@ -8,7 +8,7 @@ import * as d3 from 'd3';
   styleUrl: './gantt-chart.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [RouterOutlet],
+  imports: [],
 })
 export class GanttChartComponent implements AfterViewInit, OnChanges {
     @ViewChild('chart') private chartContainer!: ElementRef;
@@ -177,15 +177,14 @@ export class GanttChartComponent implements AfterViewInit, OnChanges {
                     // Update rect position
                     rect.attr('x', newRectX);
 
-                    self.selectedElement.select('.full-line').attr('x', newRectX);
-
-                    self.selectedElement.select('.progress-line').attr('x', newRectX);
-
                     // Update texts position relative to rect
                     texts.attr('x', newRectX + 8)
                          .attr('y', (d: any, i: number) => {
                              return initialRectY + (i === 0 ? 20 : 35); // Keep Y position unchanged
                          });
+
+                    const pencil = self.selectedElement.select('text:last-of-type');
+                    pencil.attr('x', newRectX + parseFloat(rect.attr('width')) - 20);
                 }
             };
 
@@ -205,6 +204,8 @@ export class GanttChartComponent implements AfterViewInit, OnChanges {
                     console.log(d);
 
                     self.updateEventPosition(self.selectedElement, d);
+                    self.removeSVG();
+                    self.createChart();
                 }
 
                 document.removeEventListener('mousemove', onMouseMove);
@@ -220,10 +221,6 @@ export class GanttChartComponent implements AfterViewInit, OnChanges {
 
     updateEventPosition(eventGroup: any, eventData: any) {
         const rect = eventGroup.select('rect#element');
-        const fullLine = eventGroup.select('.full-line');
-        const progressLine = eventGroup.select('.progress-line');
-        const titleText = eventGroup.select('text:nth-of-type(1)');
-        const detailsText = eventGroup.select('text:nth-of-type(2)');
 
         const newX = this.timeScale(this.dateFormat(`${eventData.startDate} ${eventData.startTime}`));
         const newWidth = this.timeScale(this.dateFormat(`${eventData.endDate} ${eventData.endTime}`)) - newX;
@@ -231,11 +228,8 @@ export class GanttChartComponent implements AfterViewInit, OnChanges {
         rect.attr('x', newX)
             .attr('width', newWidth);
 
-        fullLine.attr('x', newX)
-            .attr('width', newWidth);
-
-        progressLine.attr('x', newX)
-            .attr('width', newWidth * (eventData.done / 100));
+        const titleText = eventGroup.select('text:nth-of-type(1)');
+        const detailsText = eventGroup.select('text:nth-of-type(2)');
 
         titleText.attr('x', newX + 8);
         detailsText.attr('x', newX + 8);
@@ -266,7 +260,7 @@ export class GanttChartComponent implements AfterViewInit, OnChanges {
             .selectAll("text")
             .style("text-anchor", "middle")
             .attr("stroke", "none")
-            .attr("font-size", 12)
+            .attr("font-size", 14)
             .attr("dx", "2em");
     }
 
@@ -295,7 +289,7 @@ export class GanttChartComponent implements AfterViewInit, OnChanges {
             }
             return '#000';
         })
-        .attr("opacity", 0.2);
+        .attr("opacity", 0.1);
     }
 
     drawEvents() {
@@ -327,36 +321,9 @@ export class GanttChartComponent implements AfterViewInit, OnChanges {
                     }
                 }
             })
+            .attr("rx", 8)
+            .attr("ry", 8)
             .style("cursor", "pointer");
-
-        eventGroups.append('rect')
-            .attr("class", "full-line")
-            .attr("x", (d: any) => {
-                return this.timeScale(this.dateFormat(`${d.startDate} ${d.startTime}`));
-            })
-            .attr("y", (d: any, i: any) => {
-                return i * this.eventsGap + this.topPadding;
-            })
-            .attr("width", (d: any) => {
-                return this.timeScale(this.dateFormat(`${d.endDate} ${d.endTime}`)) - this.timeScale(this.dateFormat(`${d.startDate} ${d.startTime}`));
-            })
-            .attr("height", 7)
-            .attr("fill", "#FFFFFF");
-
-        eventGroups.append('rect')
-            .attr("class", "progress-line")
-            .attr("x", (d: any) => {
-                return this.timeScale(this.dateFormat(`${d.startDate} ${d.startTime}`));
-            })
-            .attr("y", (d: any, i: any) => {
-                return i * this.eventsGap + this.topPadding;
-            })
-            .attr("width", (d: any) => {
-                const eventWidth = this.timeScale(this.dateFormat(`${d.endDate} ${d.endTime}`)) - this.timeScale(this.dateFormat(`${d.startDate} ${d.startTime}`));
-                return eventWidth * (d.done / 100);
-            })
-            .attr("height", 5)
-            .attr("fill", "#FF0000");
 
         eventGroups.append("text")
             .text((d: any) => d.title.toUpperCase())
@@ -374,7 +341,7 @@ export class GanttChartComponent implements AfterViewInit, OnChanges {
             .text((d: any) => {
                 const startTime = d.startTime.split(':').slice(0, 2).join(':');
                 const endTime = d.endTime.split(':').slice(0, 2).join(':');
-                return d.done + '%' + '\u00A0\u00A0⬤\u00A0\u00A0' + `${startTime} - ${endTime}`;            })
+                return `${startTime} - ${endTime}`;})
             .attr("x", (d: any) => {
                 return this.timeScale(this.dateFormat(`${d.startDate} ${d.startTime}`)) + 8;
             })
@@ -385,11 +352,25 @@ export class GanttChartComponent implements AfterViewInit, OnChanges {
             .attr("text-anchor", "start")
             .attr("fill", "#555")
 
-        eventGroups.on('click', (data: any) => {
-            if (!this.isDragging) {
-                this.eventClicked.emit(data.srcElement.__data__);
-            }
-        });
+        eventGroups.append("text")
+            .text('✏️')
+            .attr("x", (d: any) => {
+                return this.timeScale(this.dateFormat(`${d.startDate} ${d.startTime}`)) + 8 + this.timeScale(this.dateFormat(`${d.endDate} ${d.endTime}`)) - this.timeScale(this.dateFormat(`${d.startDate} ${d.startTime}`)) - 20;
+            })
+            .attr("y", (d: any, i: any) => {
+                return i * this.eventsGap + this.topPadding + (this.eventHeight / 2);
+            })
+            .attr("dy", "0.35em")
+            .attr("font-size", 20)
+            .attr("text-anchor", "end")
+            .attr("fill", "#000")
+            .style("cursor", "pointer")
+            .on('click', (event: any, d: any) => {
+                event.stopPropagation();
+                this.eventClicked.emit(d);
+                console.log('Edit clicked for event:', d);
+            });
+
     }
 
     vertLabelsSvg() {
@@ -424,7 +405,7 @@ export class GanttChartComponent implements AfterViewInit, OnChanges {
                     }
                     return
                 })
-                .attr("font-size", 11)
+                .attr("font-size", 16)
                 .attr("text-anchor", "start")
                 .attr("text-height", 14)
                 .attr("fill", (d: any) => {
@@ -463,4 +444,5 @@ export class GanttChartComponent implements AfterViewInit, OnChanges {
 
     calculateHeight(): void {
         this.height = this.topPadding + this.events.length * (this.eventsGap);
-    }}
+    }
+}

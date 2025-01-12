@@ -7,7 +7,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatSelectModule } from '@angular/material/select';
 import { MatNativeDateModule, provideNativeDateAdapter } from '@angular/material/core';
 import { MatDatepickerModule } from '@angular/material/datepicker';
-import { formatDate, NgFor, NgIf } from '@angular/common';
+import { formatDate } from '@angular/common';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 
 @Component({
@@ -25,8 +25,6 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
         MatDatepickerModule,
         MatNativeDateModule,    
         MatCheckboxModule,
-        NgFor,
-        NgIf
     ],
     providers: [provideNativeDateAdapter()],
 })
@@ -34,12 +32,11 @@ export class EventCreateComponent {
     form: FormGroup = new FormGroup({
         startDate: new FormControl(null, {validators: Validators.compose([Validators.required])}),
         endDate: new FormControl(null, {validators: Validators.compose([Validators.required])}),
-        status: new FormControl(null, {validators: Validators.compose([Validators.required])}),
+        color: new FormControl(null, {validators: Validators.compose([Validators.required])}),
         title: new FormControl(null, {validators: Validators.compose([Validators.required])}),
         rowId: new FormControl(null, {validators: Validators.compose([Validators.required])}),
         startTime: new FormControl(null),
         endTime: new FormControl(null),
-        allDay: new FormControl(true),
     });
 
     constructor(
@@ -53,7 +50,7 @@ export class EventCreateComponent {
     }
 
     get colorValue(): string{
-        return this.form.controls['status'].value as string;
+        return this.form.controls['color'].value as string;
     }
     
     onSubmit(): void {
@@ -66,7 +63,11 @@ export class EventCreateComponent {
         this.form.controls['startDate'].setValue(formattedStartDate);
         this.form.controls['endDate'].setValue(formattedEndDate);
     
-        this.dialogRef.close(this.form.value);
+        const event = { ...this.form.value };
+        event.startTime = event.startTime?.length === 5 ? `${event.startTime}:00` : event.startTime;
+        event.endTime = event.endTime?.length === 5 ? `${event.endTime}:00` : event.endTime;
+
+        this.dialogRef.close(event);
     }
 
     onClose(): void {

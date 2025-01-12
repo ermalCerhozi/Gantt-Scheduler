@@ -9,7 +9,7 @@
                 <input matInput formControlName="title">
             </mat-form-field>
             <mat-form-field appearance="outline" class="half-width">
-                <mat-label>Select Row</mat-label>
+                <mat-label>Assign to</mat-label>
                 <mat-select formControlName="rowId">
                     @for (item of data.rows; track $index) {
                         <mat-option [value]="item.id">{{item.title}}</mat-option>
@@ -43,17 +43,13 @@
         </div>
         <div class="color-picker-container">
             <button type="button" color="primary" mat-button (click)="color.click()">Select Color</button>
-            <input type="color" class="hidden-color-input" #color formControlName="status">
+            <input type="color" class="hidden-color-input" #color formControlName="color">
             <p class="color-display">
-                Status color: 
                 @if (colorValue != null) {
                     <span class="color-box" [style.backgroundColor]="colorValue"></span>
                 }
-                {{colorValue == null ? "---" : colorValue}} 
+                {{colorValue == null ? "" : colorValue}} 
             </p>
-        </div>
-        <div class="form-row">
-            <mat-checkbox color="accent" formControlName="allDay">All Day Event?</mat-checkbox>
         </div>
     </form>
 </mat-dialog-content>

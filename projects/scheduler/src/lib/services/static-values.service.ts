@@ -151,4 +151,8 @@ export class StaticValuesService {
     getInitialView(): string {
         return 'day'; //'month' | 'week' | 'day';
     }
+
+    getWeekOfDate(date: Date): number {
+        return getWeek(date);
+    }
 }

@@ -9,7 +9,7 @@ export interface TableRow {
 export interface BaseTableEvent {
     title: string;
     id: string | number;
-    status: string;
+    color: string;
 }
 
 export interface TableEvent {

@@ -5,6 +5,12 @@
         </mat-button-toggle>
     </mat-button-toggle-group>
 
+    <mat-form-field class="goToDate" appearance="outline">
+        <input matInput [(ngModel)]="goToDateValue" [matDatepicker]="picker" placeholder="Go to date" (dateChange)="goToDate($event.value)">
+        <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+        <mat-datepicker #picker></mat-datepicker>
+    </mat-form-field>
+
     <div class="navigation-buttons">
         <button mat-button (click)="previousHandler()">
         <mat-icon>keyboard_arrow_left</mat-icon>

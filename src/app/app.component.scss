@@ -1,6 +1,13 @@
-
 .buttons {
     display: flex;
     gap: 16px;
     padding-bottom: 8px;
+    justify-content: space-around;
+    align-items: center;
+}
+
+.gradient-text {
+    background: linear-gradient(to right, #64B5F6, #81C784, #4FC3F7, #4DB6AC);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }

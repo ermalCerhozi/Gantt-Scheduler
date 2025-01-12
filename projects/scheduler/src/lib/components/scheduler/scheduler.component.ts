@@ -1,4 +1,4 @@
-import { Component, EventEmitter, inject, Inject, Input, OnChanges, OnInit, Optional, Output, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, inject, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DateChangeService } from '../../services/date-change.service';
 import { SchedulerDayViewComponent } from '../scheduler-day-view/scheduler-day-view.component';
@@ -12,12 +12,28 @@ import { FormsModule } from '@angular/forms';
 import { SchedulerWeekViewComponent } from '../scheduler-week-view-component/scheduler-week-view.component';
 import { ViewButton } from '../../core/interface';
 import { MatDialog } from '@angular/material/dialog';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatInputModule } from '@angular/material/input';
+import { MatNativeDateModule } from '@angular/material/core';
 
 @Component({
     selector: 'scheduler',
     standalone: true,
     imports: [
-        MatIconModule, SchedulerDayViewComponent, CommonModule, MatButtonModule, MatIconModule, MatButtonToggleModule, MatCardModule, SchedulerMonthViewComponent, SchedulerWeekViewComponent, FormsModule
+        MatIconModule,
+        SchedulerDayViewComponent,
+        SchedulerDayViewComponent,
+        CommonModule,
+        MatButtonModule,
+        MatIconModule,
+        MatButtonToggleModule,
+        MatCardModule,
+        SchedulerMonthViewComponent,
+        SchedulerWeekViewComponent,
+        FormsModule,
+        MatDatepickerModule,
+        MatInputModule,
+        MatNativeDateModule,
     ],
     providers: [
         DateChangeService,
@@ -42,15 +58,17 @@ export class ResourceSchedulerComponent implements OnInit, OnChanges {
     @Output('Previous') onPrevious = new EventEmitter<void>();
     @Output('Today') onToday = new EventEmitter<void>();
     @Output('Next') onNext = new EventEmitter<void>();
+    @Output('SetDate') onSetDate = new EventEmitter<string>();
     @Output('EventClick') onEventClick = new EventEmitter<any>();
 
     public viewButtons: ViewButton[] = [
-        { id: 'month', name: 'month' },
-        { id: 'week', name: 'week' },
-        { id: 'day', name: 'day' }
+        { id: 'month', name: 'Month' },
+        { id: 'week', name: 'Week' },
+        { id: 'day', name: 'Day' }
     ];
 
-    
+    goToDateValue: Date | null = null;
+
     ngOnChanges(changes: SimpleChanges) {
         if (changes['events'] && !changes['events'].isFirstChange()) {
             if (changes['events'].previousValue !== changes['events'].currentValue) {
@@ -84,24 +102,33 @@ export class ResourceSchedulerComponent implements OnInit, OnChanges {
     viewChangeHandler(view: any) {
         this.activeView = view;
         this.onViewChange.emit(view);
+        this.goToDateValue = null; // Clear the form field
     }
 
     previousHandler() {
         this.dateChangeService.previous();
         this.onPrevious.emit();
+        this.goToDateValue = null; // Clear the form field
     }
 
     nextHandler() {
         this.dateChangeService.next();
         this.onNext.emit();
+        this.goToDateValue = null; // Clear the form field
     }
 
     todayHandler() {
         this.dateChangeService.today();
         this.onToday.emit();
+        this.goToDateValue = null; // Clear the form field
     }
 
     updateEvent(event: any[]) {
         this.onEventClick.emit(event);
+    }
+
+    goToDate(date: Date) {
+        this.dateChangeService.setDate(date);
+        this.onSetDate.emit(this.activeView);
     }
 }

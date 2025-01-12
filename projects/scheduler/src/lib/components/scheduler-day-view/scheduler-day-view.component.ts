@@ -1,6 +1,5 @@
-import { Component, EventEmitter, inject, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, Output } from '@angular/core';
 import { SchedulerBaseViewComponent } from '../../components/scheduler-base-view/scheduler-base-view.component';
-import { StaticValuesService } from '../../services/static-values.service';
 import { GanttChartComponent } from '../gantt-chart/gantt-chart.component';
 
 @Component({
@@ -28,7 +27,7 @@ export class SchedulerDayViewComponent extends SchedulerBaseViewComponent {
     tableRows: any[] = [];
     events: any[] = [];
 
-    constructor(private staticValuesService: StaticValuesService) {
+    constructor() {
         super();
         this.daysOfweek = this.staticValuesService.getDaysOfWeek();
         this.monthsOfYear = this.staticValuesService.getMonthsOfYear();
@@ -47,7 +46,7 @@ export class SchedulerDayViewComponent extends SchedulerBaseViewComponent {
     override todayButtonHandler() {
         this.day = this.staticValuesService.getCurrentDay();
         this.week = this.staticValuesService.getCurrentWeek();
-        this.month = this.staticValues.getCurrentMonth();
+        this.month = this.staticValuesService.getCurrentMonth();
         this.year = this.staticValuesService.getCurrentYear();
         this.calculateCurrentDate();
     }
@@ -79,9 +78,19 @@ export class SchedulerDayViewComponent extends SchedulerBaseViewComponent {
         this.calculateCurrentDate();
     }
 
+    override setDateButtonHandler(date: Date) {
+        this.year = date.getFullYear();
+        this.month = date.getMonth() + 1;
+        this.week = this.staticValuesService.getWeekOfDate(date);
+        this.day = date.getDay();
+        this.calculateCurrentDate();
+    }
+
     override eventChangesHandler() {
         this.events = [];
-        this.events = this.tableRowSourceService.getEvents();
+        this.tableRowSourceService.eventChanges().subscribe((events) => {
+            this.events = events;
+        });
     }
 
     override tableRowChangesHandler() {

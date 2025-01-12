@@ -15,7 +15,7 @@ export class SchedulerMonthViewComponent extends SchedulerBaseViewComponent impl
 
     month: number = 0;
     year: number = 0;
-    monthsOfYear: string[] = this.staticValues.getMonthsOfYear();
+    monthsOfYear: string[] = [];
     title: string = '';
 
     tableRows: any[] = [];
@@ -23,15 +23,20 @@ export class SchedulerMonthViewComponent extends SchedulerBaseViewComponent impl
 
     daysOfMonth: number = 0;
 
+    constructor() {
+        super();
+        this.monthsOfYear = this.staticValuesService.getMonthsOfYear();
+    }
+
     calculateCurrentDate() {
-        this.daysOfMonth = this.staticValues.getDaysOfMonth(this.year, this.month);
+        this.daysOfMonth = this.staticValuesService.getDaysOfMonth(this.year, this.month);
         const month = this.monthsOfYear[this.month - 1];
         this.title = month + ' ' + this.year;
     }
 
     override todayButtonHandler() {
-        this.month = this.staticValues.getCurrentMonth();
-        this.year = this.staticValues.getCurrentYear();
+        this.month = this.staticValuesService.getCurrentMonth();
+        this.year = this.staticValuesService.getCurrentYear();
         this.calculateCurrentDate();
     }
 
@@ -53,9 +58,17 @@ export class SchedulerMonthViewComponent extends SchedulerBaseViewComponent impl
         this.calculateCurrentDate();
     }
 
+    override setDateButtonHandler(date: Date) {
+        this.month = date.getMonth() + 1;
+        this.year = date.getFullYear();
+        this.calculateCurrentDate();
+    }
+
     override eventChangesHandler() {
         this.events = [];
-        this.events = this.tableRowSourceService.getEvents();
+        this.tableRowSourceService.eventChanges().subscribe((events) => {
+            this.events = events;
+        });
     }
 
     override tableRowChangesHandler() {

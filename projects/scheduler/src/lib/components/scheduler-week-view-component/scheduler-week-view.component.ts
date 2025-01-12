@@ -15,27 +15,33 @@ export class SchedulerWeekViewComponent extends SchedulerBaseViewComponent imple
 
     week: number = 0;
     year: number = 0;
-    daysOfWeek: any[] = this.staticValues.getDaysOfWeek();
+    daysOfweek: string[] = [];
     title: string = '';
-    dateSplitter: string = this.staticValues.getDateSplitter();
+    dateSplitter: string = '';
 
     tableRows: any[] = [];
     events: any[] = [];
 
     startOfWeek: string = '';
     endOfWeek: string = '';
+
+    constructor() {
+        super();
+        this.daysOfweek = this.staticValuesService.getDaysOfWeek();
+        this.dateSplitter = this.staticValuesService.getDateSplitter();
+    }
     
     calculateCurrentDate() {
-        const start = this.staticValues.getDateOfDay(this.year, this.week, 0);
-        const end = this.staticValues.getDateOfDay(this.year, this.week, 6);
-        this.startOfWeek = this.staticValues.transformDate(+start.split(this.dateSplitter)[0], start.split(this.dateSplitter)[1], start.split(this.dateSplitter)[2]);
-        this.endOfWeek = this.staticValues.transformDate(+end.split(this.dateSplitter)[0], end.split(this.dateSplitter)[1], end.split(this.dateSplitter)[2]);
+        const start = this.staticValuesService.getDateOfDay(this.year, this.week, 0);
+        const end = this.staticValuesService.getDateOfDay(this.year, this.week, 6);
+        this.startOfWeek = this.staticValuesService.transformDate(+start.split(this.dateSplitter)[0], start.split(this.dateSplitter)[1], start.split(this.dateSplitter)[2]);
+        this.endOfWeek = this.staticValuesService.transformDate(+end.split(this.dateSplitter)[0], end.split(this.dateSplitter)[1], end.split(this.dateSplitter)[2]);
         this.title = `${start.split(this.dateSplitter)[2]}/${start.split(this.dateSplitter)[1]}/${start.split(this.dateSplitter)[0]} - ${end.split(this.dateSplitter)[2]}/${end.split(this.dateSplitter)[1]}/${end.split(this.dateSplitter)[0]}`;
     }
 
     override todayButtonHandler() {
-        this.week = this.staticValues.getCurrentWeek();
-        this.year = this.staticValues.getCurrentYear();
+        this.week = this.staticValuesService.getCurrentWeek();
+        this.year = this.staticValuesService.getCurrentYear();
         this.calculateCurrentDate();
     }
 
@@ -43,14 +49,14 @@ export class SchedulerWeekViewComponent extends SchedulerBaseViewComponent imple
         this.week--;
         if (this.week < 1) {
         this.year--;
-        this.week = this.staticValues.getWeeksOfYear(this.year) - 1;
+        this.week = this.staticValuesService.getWeeksOfYear(this.year) - 1;
         }
         this.calculateCurrentDate();
     }
 
     override nextButtonHandler() {
         this.week++;
-        const weeksOfYear = this.staticValues.getWeeksOfYear(this.year);
+        const weeksOfYear = this.staticValuesService.getWeeksOfYear(this.year);
         if (this.week >= weeksOfYear) {
         this.year++;
         this.week = 1;
@@ -58,9 +64,17 @@ export class SchedulerWeekViewComponent extends SchedulerBaseViewComponent imple
         this.calculateCurrentDate();
     }
 
+    override setDateButtonHandler(date: Date) {
+        this.week = this.staticValuesService.getWeekOfDate(date);
+        this.year = date.getFullYear();
+        this.calculateCurrentDate();
+    }
+
     override eventChangesHandler() {
         this.events = [];
-        this.events = this.tableRowSourceService.getEvents();
+        this.tableRowSourceService.eventChanges().subscribe((events) => {
+            this.events = events;
+        });
     }
 
     override tableRowChangesHandler() {

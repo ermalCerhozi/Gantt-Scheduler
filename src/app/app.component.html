@@ -1,6 +1,8 @@
 <div class="buttons">
+    <h3 class="gradient-text">GANTT CHART SCHEDULER</h3>
     <button mat-stroked-button (click)="createEvent()">
-        Create Event
+        Create New Event
+        <mat-icon>add</mat-icon>
     </button>
 </div>
 
@@ -10,10 +12,10 @@
     [Weekends]="weekEnds"
     [Holidays]="holidays"
     [ActiveView]="'month'"
-
     (ViewChange)="onViewChange($event)"
     (Previous)="onPrevius()"
     (Today)="onToday()"
     (Next)="onNext()"
+    (SetDate)="onSetDate($event)"
     (EventClick)="onEventClick($event)"
 ></scheduler>
