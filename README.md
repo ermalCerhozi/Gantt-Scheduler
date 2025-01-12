@@ -18,17 +18,13 @@
 
 ## :books: General info
 
-* Enables users to create events, generate PDF of the events, monitor different events assigned to different entities, and track progress through a fully responsive web interface.
+* Enables users to create events, generate a PDF of the events, monitor different events assigned to different entities, and track progress through a fully responsive web interface.
 
 ## :camera: Screenshots
 
 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px;">
-    <img src="screenshots/login.png" alt="Login" width="200"/>
-    <img src="screenshots/chart.png" alt="Chart" width="200"/>
-    <img src="screenshots/profile.png" alt="Profile" width="200"/>
-    <img src="screenshots/filterOrders.png" alt="Filter Orders" width="200"/>
-    <img src="screenshots/downloadedPDF.png" alt="Downloaded PDF" width="200"/>
-    <img src="screenshots/orderList.png" alt="Order List" width="200"/>
+  <img src="screenshots/ganttView.png" alt="ganttView" width="408"/>
+  <img src="screenshots/ganttViewUpdate.png" alt="ganttViewUpdate" width="408"/>
 </div>
 
 ## :signal_strength: Technologies
@@ -44,12 +40,12 @@
 * Run `ng serve`.
 * Navigate to `http://localhost:4200/`. The app will automatically reload if you change any of the source files.
 
-* If you want to modify the behaviour of the gantt then you also need to run the `ng build scheduler --watch` comand on another tab simultaneously
+* If you want to modify the behavior of the Gantt, then you also need to run the `ng build scheduler --watch` command on another tab simultaneously
 
 ## :cool: Features
 
 * Drag and drop Events.
-* Gantt pdf format download.
+* Download Gantt chart in PDF format.
 
 ## :clipboard: Status & To-Do List
 

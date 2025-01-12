@@ -26,6 +26,7 @@ import { MatNativeDateModule, provideNativeDateAdapter } from '@angular/material
         MatNativeDateModule,
         MatCheckboxModule,
     ],
+    standalone: true,
     providers: [provideNativeDateAdapter()]
 })
 export class EventUpdateComponent {

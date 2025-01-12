@@ -42,7 +42,9 @@
             </mat-form-field>
         </div>
         <div class="color-picker-container">
-            <button type="button" color="primary" mat-stroked-button (click)="color.click()">Select Color</button>
+            <button type="button" color="primary" mat-stroked-button (click)="color.click()">
+                {{ colorValue ? 'Change Color' : 'Select Color' }}
+            </button>
             <input type="color" class="hidden-color-input" #color formControlName="color">
             <p class="color-display">
                 @if (colorValue != null) {
