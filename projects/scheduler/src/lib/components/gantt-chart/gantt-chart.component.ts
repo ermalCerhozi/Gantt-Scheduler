@@ -1,7 +1,7 @@
 import { AfterViewInit, Component, ElementRef, EventEmitter, Input, OnChanges, Output, SimpleChanges, ViewChild } from "@angular/core";
-import * as d3 from 'd3';
+import { select, timeParse, scaleTime, axisTop, timeFormat, timeDay } from 'd3';
 import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 
 @Component({
     selector: 'gantt-chart',
@@ -65,7 +65,7 @@ export class GanttChartComponent implements AfterViewInit, OnChanges {
             const viewChanged = simpleChange['view'] && simpleChange['view'].previousValue !== simpleChange['view'].currentValue;
 
             if (titleChanged || eventsChanged || tableRowChanged || viewChanged) {
-                if (this.chartContainer && !d3.select(this.chartContainer.nativeElement).select("svg").empty()) {
+                if (this.chartContainer && !select(this.chartContainer.nativeElement).select("svg").empty()) {
                     this.orderEventsByRows(this.events, this.tableRows);
                     this.calculateNumOccurrences(this.events, this.tableRows);
                     this.calculateHeight();
@@ -77,31 +77,31 @@ export class GanttChartComponent implements AfterViewInit, OnChanges {
     }
 
     removeSVG(): void {
-        d3.select(this.chartContainer.nativeElement).select("svg").remove();
-        d3.select(this.chartVertLabelsContainer.nativeElement).select("svg").remove();
+        select(this.chartContainer.nativeElement).select("svg").remove();
+        select(this.chartVertLabelsContainer.nativeElement).select("svg").remove();
     }
 
     createChart() {
         if (!this.tableRows.length || !this.events.length) {
             return;
         }
-        if (!d3.select(this.chartContainer.nativeElement).select("svg").empty()) {
+        if (!select(this.chartContainer.nativeElement).select("svg").empty()) {
             return;
         }
 
         const element = this.chartContainer.nativeElement;
 
-        this.svg = d3.select(element)
+        this.svg = select(element)
             .append("svg")
             .attr("width", this.width)
             .attr("height", this.height)
             .attr("class", "svg");
         
-        this.dateFormat = d3.timeParse("%d-%m-%Y %H:%M:%S");
+        this.dateFormat = timeParse("%d-%m-%Y %H:%M:%S");
         
         switch (this.view) {
             case 'day':
-                this.timeScale = d3.scaleTime()
+                this.timeScale = scaleTime()
                     .domain([
                         new Date(this.year, this.month - 1, this.day),
                         new Date(this.year, this.month - 1, this.day + 1)
@@ -113,12 +113,12 @@ export class GanttChartComponent implements AfterViewInit, OnChanges {
                 const endOfWeekDate = this.endOfWeek.split('T')[0];
                 const [startYear, startMonth, startDay] = startOfWeekDate.split('-').map(Number);
                 const [endYear, endMonth, endDay] = endOfWeekDate.split('-').map(Number);
-                this.timeScale = d3.scaleTime()
+                this.timeScale = scaleTime()
                     .domain([new Date(startYear, startMonth - 1, startDay), new Date(endYear, endMonth - 1, endDay + 1)])
                     .range([0, this.width - 1]);
                 break;
             case 'month':
-                this.timeScale = d3.scaleTime()
+                this.timeScale = scaleTime()
                     .domain([new Date(this.year, this.month - 1, 1), new Date(this.year, this.month - 1, (this.daysOfMonth + 1))])
                     .range([0, this.width - 1]);
                 break;
@@ -151,7 +151,7 @@ export class GanttChartComponent implements AfterViewInit, OnChanges {
         const self = this;
 
         eventGroups.on('mousedown', (event: MouseEvent, d: any) => {
-            self.selectedElement = d3.select(event.currentTarget as HTMLElement);
+            self.selectedElement = select(event.currentTarget as HTMLElement);
             self.startX = event.clientX;
             self.startY = event.clientY;
 
@@ -196,10 +196,10 @@ export class GanttChartComponent implements AfterViewInit, OnChanges {
                     const newStartDateTime = self.timeScale.invert(newX);
                     const newEndDateTime = self.timeScale.invert(newX + rectWidth);
 
-                    d.startDate = d3.timeFormat("%d-%m-%Y")(newStartDateTime);
-                    d.startTime = d3.timeFormat("%H:%M:%S")(newStartDateTime);
-                    d.endDate = d3.timeFormat("%d-%m-%Y")(newEndDateTime);
-                    d.endTime = d3.timeFormat("%H:%M:%S")(newEndDateTime);
+                    d.startDate = timeFormat("%d-%m-%Y")(newStartDateTime);
+                    d.startTime = timeFormat("%H:%M:%S")(newStartDateTime);
+                    d.endDate = timeFormat("%d-%m-%Y")(newEndDateTime);
+                    d.endTime = timeFormat("%H:%M:%S")(newEndDateTime);
                     console.log(d);
 
                     self.updateEventPosition(self.selectedElement, d);
@@ -239,17 +239,17 @@ export class GanttChartComponent implements AfterViewInit, OnChanges {
     }
 
     makeGrid() {
-        var xAxis = d3.axisTop(this.timeScale)
-            .ticks(d3.timeDay)
+        var xAxis = axisTop(this.timeScale)
+            .ticks(timeDay)
             .tickSize(-this.height + this.topPadding)
             .tickSizeOuter(0)
 
             if (this.view === 'day') {
-                xAxis.tickFormat((domainValue: any) => d3.timeFormat('%A')(domainValue as Date));
+                xAxis.tickFormat((domainValue: any) => timeFormat('%A')(domainValue as Date));
             } else if (this.view === 'week') {
-                xAxis.tickFormat((domainValue: any) => d3.timeFormat('%d %b')(domainValue as Date));
+                xAxis.tickFormat((domainValue: any) => timeFormat('%d %b')(domainValue as Date));
             } else {
-                xAxis.tickFormat((domainValue: any) => d3.timeFormat('%d')(domainValue as Date));
+                xAxis.tickFormat((domainValue: any) => timeFormat('%d')(domainValue as Date));
             }
     
         this.svg.append('g')
@@ -375,7 +375,7 @@ export class GanttChartComponent implements AfterViewInit, OnChanges {
     vertLabelsSvg() {
         const element = this.chartVertLabelsContainer.nativeElement;
 
-        this.verticalLabelsSVG = d3.select(element)
+        this.verticalLabelsSVG = select(element)
             .append("svg")
             .attr("width", 80)
             .attr("height", this.height)
