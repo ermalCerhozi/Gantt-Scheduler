@@ -1,61 +1,48 @@
-import { Injectable } from '@angular/core';
-import { Subject, Observable } from 'rxjs';
+import { Injectable, signal } from '@angular/core';
 
 @Injectable({
   providedIn: 'root'
 })
 export class DateChangeService {
-    private _next = new Subject<void>();
-    private _prev = new Subject<void>();
-    private _today = new Subject<void>();
-    private _dateChange = new Subject<Date>();
-    private _download = new Subject<void>();
+  private readonly _nextTrigger = signal<number>(0);
+  private readonly _previousTrigger = signal<number>(0);
+  private readonly _todayTrigger = signal<number>(0);
+  private readonly _currentDate = signal<Date | null>(null);
+  private readonly _downloadTrigger = signal<number>(0);
 
-    private _next$ = this._next.asObservable();
-    private _prev$ = this._prev.asObservable();
-    private _today$ = this._today.asObservable();
-    private _dateChange$ = this._dateChange.asObservable();
-    private _download$ = this._download.asObservable();
+  readonly nextTrigger = this._nextTrigger.asReadonly();
+  readonly previousTrigger = this._previousTrigger.asReadonly();
+  readonly todayTrigger = this._todayTrigger.asReadonly();
+  readonly currentDate = this._currentDate.asReadonly();
+  readonly downloadTrigger = this._downloadTrigger.asReadonly();
 
-    constructor() {}
+  constructor() {}
 
-    next(): void {
-        this._next.next();
-    }
+  next(): void {
+    this._nextTrigger.update(count => count + 1);
+  }
 
-    previous(): void {
-        this._prev.next();
-    }
+  previous(): void {
+    this._previousTrigger.update(count => count + 1);
+  }
 
-    today(): void {
-        this._today.next();
-    }
+  today(): void {
+    this._todayTrigger.update(count => count + 1);
+  }
 
-    setDate(date: Date): void {
-        this._dateChange.next(date);
-    }
+  setDate(date: Date): void {
+    this._currentDate.set(date);
+  }
 
-    download(): void {
-        this._download.next();
-    }
+  download(): void {
+    this._downloadTrigger.update(count => count + 1);
+  }
 
-    onNext(): Observable<void> {
-        return this._next$;
-    }
+  getCurrentDate(): Date | null {
+    return this._currentDate();
+  }
 
-    onPrevious(): Observable<void> {
-        return this._prev$;
-    }
-
-    onToday(): Observable<void> {
-        return this._today$;
-    }
-
-    onSetDate(): Observable<Date> {
-        return this._dateChange$;
-    }
-
-    onDownload(): Observable<void> {
-        return this._download$;
-    }
+  resetDate(): void {
+    this._currentDate.set(null);
+  }
 }

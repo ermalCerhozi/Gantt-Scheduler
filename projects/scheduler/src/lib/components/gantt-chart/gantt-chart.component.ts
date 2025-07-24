@@ -1,7 +1,36 @@
-import { AfterViewInit, Component, ElementRef, EventEmitter, Input, OnChanges, Output, SimpleChanges, ViewChild } from "@angular/core";
-import { select, timeParse, scaleTime, axisTop, timeFormat, timeDay } from 'd3';
+import { AfterViewInit, Component, ElementRef, effect, input, output, signal, ViewChild, computed, DestroyRef, inject } from "@angular/core";
+import { select, timeParse, scaleTime, axisTop, timeFormat, timeDay, Selection, BaseType } from 'd3';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
+
+interface ProcessedEvent {
+    id: string;
+    rowId: string;
+    title: string;
+    startDate: string;
+    startTime: string;
+    endDate: string;
+    endTime: string;
+    color: string;
+    y: number;
+}
+
+interface RowMetric {
+    rowId: string;
+    title: string;
+    count: number;
+    startY: number;
+    height: number;
+}
+
+interface ChartDimensions {
+    width: number;
+    height: number;
+    topPadding: number;
+    eventHeight: number;
+    gutter: number;
+    eventsGap: number;
+}
 
 @Component({
     selector: 'gantt-chart',
@@ -9,252 +38,249 @@ import { jsPDF } from 'jspdf';
     styleUrl: './gantt-chart.component.scss',
     standalone: true
 })
-export class GanttChartComponent implements AfterViewInit, OnChanges {
-    @ViewChild('chart') private chartContainer!: ElementRef;
-    @ViewChild('chartVertLabels') private chartVertLabelsContainer!: ElementRef;
-    
-    @Input('TableRows') tableRows!: any[];
-    @Input('Events') events!: any[];
-    @Input('Title') title!: string; //TODO: Maybe is better to calculete here using the data we have from the other inputs
-    @Input('View') view!: string;
+export class GanttChartComponent implements AfterViewInit {
+    @ViewChild('chart') private chartContainer!: ElementRef<HTMLElement>;
+    @ViewChild('chartVertLabels') private chartVertLabelsContainer!: ElementRef<HTMLElement>;
 
-    @Input('Year') year!: number;
-    @Input('Month') month!: number;
-    @Input('DaysOfMonth') daysOfMonth!: number;
-    @Input('StartOfWeek') startOfWeek!: string;
-    @Input('EndOfWeek') endOfWeek!: string;
-    @Input('Day') day!: number;
-    
-    @Output('eventClicked') eventClicked = new EventEmitter<any>();
+    private readonly destroyRef = inject(DestroyRef);
 
-    svg: any; //The gannt svg
-    verticalLabelsSVG: any; //The table rows svg
-    dateFormat: any;
-    timeScale: any;
-    numOccurances!: any[]; //The number of occurrences of events for each tableRow
+    readonly tableRows = input<any[]>([]);
+    readonly events = input<any[]>([]);
+    readonly title = input<string>('');
+    readonly view = input<string>('month');
+    readonly year = input<number>(new Date().getFullYear());
+    readonly month = input<number>(new Date().getMonth() + 1);
+    readonly daysOfMonth = input<number>(31);
+    readonly startOfWeek = input<string>('');
+    readonly endOfWeek = input<string>('');
+    readonly day = input<number>(1);
 
-    width: number = 1400;
-    height: number = 0;
-    topPadding: number = 75;
-    eventHeight: number = 48;
-    gutter: number = 4;
-    eventsGap: number = this.eventHeight + this.gutter;
+    readonly eventClicked = output<any>();
 
-    //DRAG AND DROP
-    newX = 0;
-    newY = 0;
-    startX = 0;
-    startY = 0;
-    selectedElement: any;
-    isDragging = false;
+    private readonly flatEvents = signal<ProcessedEvent[]>([]);
+    private readonly rowMetrics = signal<RowMetric[]>([]);
+    private readonly chartInitialized = signal<boolean>(false);
 
-    constructor() { }
+    private svg: Selection<SVGSVGElement, unknown, null, undefined> | null = null;
+    private verticalLabelsSVG: Selection<SVGSVGElement, unknown, null, undefined> | null = null;
+    private dateFormat = timeParse("%d-%m-%Y %H:%M:%S");
+    private timeScale: any = null;
+
+    private dragState = {
+        selectedElement: null as Selection<SVGGElement, ProcessedEvent, any, unknown> | null,
+        startX: 0,
+        startY: 0,
+        isDragging: false
+    };
+
+    private readonly dimensions: ChartDimensions = {
+        width: 1400,
+        height: 0,
+        topPadding: 75,
+        eventHeight: 48,
+        gutter: 4,
+        eventsGap: 52
+    };
+
+    private readonly shouldRedraw = computed(() => {
+        return {
+            tableRows: this.tableRows(),
+            events: this.events(),
+            title: this.title(),
+            view: this.view(),
+            year: this.year(),
+            month: this.month(),
+            day: this.day(),
+            daysOfMonth: this.daysOfMonth(),
+            startOfWeek: this.startOfWeek(),
+            endOfWeek: this.endOfWeek()
+        };
+    });
+
+    constructor() {
+        effect(() => {
+            this.processAndFlattenEvents();
+        });
+
+        effect(() => {
+            this.shouldRedraw();
+            if (this.chartInitialized()) {
+                this.redrawChart();
+            }
+        });
+    }
 
     ngAfterViewInit() {
-        this.orderEventsByRows(this.events, this.tableRows);
-        this.calculateNumOccurrences(this.events, this.tableRows);
-        this.calculateHeight();
+        this.processAndFlattenEvents();
         this.createChart();
+        this.chartInitialized.set(true);
     }
 
-    ngOnChanges(simpleChange : SimpleChanges): void {
-        if (simpleChange['title'] || simpleChange['events'] || simpleChange['tableRow'] || simpleChange['view']) {
-            const titleChanged = simpleChange['title'] && simpleChange['title'].previousValue !== simpleChange['title'].currentValue;
-            const eventsChanged = simpleChange['events'] && simpleChange['events'].previousValue !== simpleChange['events'].currentValue;
-            const tableRowChanged = simpleChange['tableRow'] && simpleChange['tableRow'].previousValue !== simpleChange['tableRow'].currentValue;
-            const viewChanged = simpleChange['view'] && simpleChange['view'].previousValue !== simpleChange['view'].currentValue;
+    private processAndFlattenEvents(): void {
+        const events: ProcessedEvent[] = [];
+        const metrics: RowMetric[] = [];
+        let currentY = this.dimensions.topPadding;
 
-            if (titleChanged || eventsChanged || tableRowChanged || viewChanged) {
-                if (this.chartContainer && !select(this.chartContainer.nativeElement).select("svg").empty()) {
-                    this.orderEventsByRows(this.events, this.tableRows);
-                    this.calculateNumOccurrences(this.events, this.tableRows);
-                    this.calculateHeight();
-                    this.removeSVG();
-                    this.createChart();
-                }
-            }
+        const tableRowsData = this.tableRows();
+        const eventsData = this.events();
+
+        if (!tableRowsData || !eventsData) {
+            this.dimensions.height = currentY;
+            this.flatEvents.set([]);
+            this.rowMetrics.set([]);
+            return;
         }
+
+        tableRowsData.forEach(row => {
+            const eventGroup = eventsData.find(e => e.rowId === row.id);
+
+            if (eventGroup?.events?.length > 0) {
+                const rowEventCount = eventGroup.events.length;
+                
+                metrics.push({
+                    rowId: row.id,
+                    title: row.title,
+                    count: rowEventCount,
+                    startY: currentY,
+                    height: rowEventCount * this.dimensions.eventsGap
+                });
+
+                eventGroup.events.forEach((event: any) => {
+                    events.push({ ...event, y: currentY });
+                    currentY += this.dimensions.eventsGap;
+                });
+            }
+        });
+
+        this.dimensions.height = currentY;
+        this.flatEvents.set(events);
+        this.rowMetrics.set(metrics);
     }
 
-    removeSVG(): void {
+    private removeSVG(): void {
         select(this.chartContainer.nativeElement).select("svg").remove();
         select(this.chartVertLabelsContainer.nativeElement).select("svg").remove();
+        this.svg = null;
+        this.verticalLabelsSVG = null;
     }
 
-    createChart() {
-        if (!this.tableRows.length || !this.events.length) {
-            return;
+    private redrawChart(): void {
+        if (this.chartContainer && this.svg) {
+            this.removeSVG();
+            this.createChart();
         }
-        if (!select(this.chartContainer.nativeElement).select("svg").empty()) {
+    }
+
+    private createChart(): void {
+        const events = this.flatEvents();
+        const tableRowsData = this.tableRows();
+
+        if (!tableRowsData?.length || !events.length) {
             return;
         }
 
+        if (this.svg) {
+            return;
+        }
+
+        this.initializeSVG();
+        this.setupTimeScale();
+        this.renderChart();
+    }
+
+    private initializeSVG(): void {
         const element = this.chartContainer.nativeElement;
 
         this.svg = select(element)
             .append("svg")
-            .attr("width", this.width)
-            .attr("height", this.height)
+            .attr("width", this.dimensions.width)
+            .attr("height", this.dimensions.height)
             .attr("class", "svg");
+    }
+
+    private setupTimeScale(): void {
+        const view = this.view();
         
-        this.dateFormat = timeParse("%d-%m-%Y %H:%M:%S");
-        
-        switch (this.view) {
+        switch (view) {
             case 'day':
                 this.timeScale = scaleTime()
                     .domain([
-                        new Date(this.year, this.month - 1, this.day),
-                        new Date(this.year, this.month - 1, this.day + 1)
+                        new Date(this.year(), this.month() - 1, this.day()),
+                        new Date(this.year(), this.month() - 1, this.day() + 1)
                     ])
-                    .range([0, this.width - 1]);
+                    .range([0, this.dimensions.width - 1]);
                 break;
+                
             case 'week':
-                const startOfWeekDate = this.startOfWeek.split('T')[0];
-                const endOfWeekDate = this.endOfWeek.split('T')[0];
-                const [startYear, startMonth, startDay] = startOfWeekDate.split('-').map(Number);
-                const [endYear, endMonth, endDay] = endOfWeekDate.split('-').map(Number);
+                const { startDate, endDate } = this.parseWeekDates();
                 this.timeScale = scaleTime()
-                    .domain([new Date(startYear, startMonth - 1, startDay), new Date(endYear, endMonth - 1, endDay + 1)])
-                    .range([0, this.width - 1]);
+                    .domain([startDate, new Date(endDate.getTime() + 24 * 60 * 60 * 1000)])
+                    .range([0, this.dimensions.width - 1]);
                 break;
+                
             case 'month':
                 this.timeScale = scaleTime()
-                    .domain([new Date(this.year, this.month - 1, 1), new Date(this.year, this.month - 1, (this.daysOfMonth + 1))])
-                    .range([0, this.width - 1]);
+                    .domain([
+                        new Date(this.year(), this.month() - 1, 1),
+                        new Date(this.year(), this.month() - 1, this.daysOfMonth() + 1)
+                    ])
+                    .range([0, this.dimensions.width - 1]);
                 break;
+                
             default:
-                console.error(`Unknown view: ${this.view}`);
+                console.error(`Unknown view: ${view}`);
         }
+    }
+
+    private parseWeekDates(): { startDate: Date; endDate: Date } {
+        const startOfWeekValue = this.startOfWeek();
+        const endOfWeekValue = this.endOfWeek();
+        
+        if (!startOfWeekValue || !endOfWeekValue) {
+            const today = new Date();
+            const dayOfWeek = today.getDay();
+            const startDate = new Date(today);
+            startDate.setDate(today.getDate() - dayOfWeek);
+            const endDate = new Date(startDate);
+            endDate.setDate(startDate.getDate() + 6);
+            return { startDate, endDate };
+        }
+        
+        const startOfWeekDate = startOfWeekValue.split('T')[0];
+        const endOfWeekDate = endOfWeekValue.split('T')[0];
+        
+        const [startYear, startMonth, startDay] = startOfWeekDate.split('-').map(Number);
+        const [endYear, endMonth, endDay] = endOfWeekDate.split('-').map(Number);
+        
+        return {
+            startDate: new Date(startYear, startMonth - 1, startDay),
+            endDate: new Date(endYear, endMonth - 1, endDay)
+        };
+    }
+
+    private renderChart(): void {
+        if (!this.svg) return;
 
         this.makeGrid();
         this.drawTableShadow();
         this.drawEvents();
-        this.vertLabelsSvg();
-        this.draggableEvents();
-        this.resizableEvents();
-
-        this.svg.append("text")
-            .text(this.title)
-            .attr("x", this.width / 2)
-            .attr("y", 24)
-            .attr("text-anchor", "middle")
-            .attr("font-size", 18)
-            .attr("fill", "#009FFC");
+        this.createVerticalLabels();
+        this.setupEventInteractions();
+        this.drawTitle();
     }
 
-    /*
-    * Add a new rect elemtn in the place the elemnt is placed
-    * when moving move the text as well
-    */
-    draggableEvents() {
-        const eventGroups = this.svg.selectAll('g.event-group');
-        const self = this;
+    private makeGrid(): void {
+        if (!this.svg) return;
 
-        eventGroups.on('mousedown', (event: MouseEvent, d: any) => {
-            self.selectedElement = select(event.currentTarget as HTMLElement);
-            self.startX = event.clientX;
-            self.startY = event.clientY;
-
-            const rect = self.selectedElement.select('rect');
-            const texts = self.selectedElement.selectAll('text');
-            const initialRectX = parseFloat(rect.attr('x'));
-            const initialRectY = parseFloat(rect.attr('y'));
-
-            const onMouseMove = function(moveEvent: MouseEvent) {
-                if (self.selectedElement) {
-                    self.isDragging = true;
-                    const dx = moveEvent.clientX - self.startX;
-
-                    let newRectX = initialRectX + dx;
-
-                    // Horizontal boundaries
-                    const chartWidth = self.width;
-                    const rectWidth = parseFloat(rect.attr('width'));
-                    if (newRectX < 0) newRectX = 0;
-                    if (newRectX + rectWidth > chartWidth) newRectX = chartWidth - rectWidth;
-
-                    // Update rect position
-                    rect.attr('x', newRectX);
-
-                    // Update texts position relative to rect
-                    texts.attr('x', newRectX + 8)
-                         .attr('y', (d: any, i: number) => {
-                             return initialRectY + (i === 0 ? 20 : 35); // Keep Y position unchanged
-                         });
-
-                    const pencil = self.selectedElement.select('text:last-of-type');
-                    pencil.attr('x', newRectX + parseFloat(rect.attr('width')) - 20);
-                }
-            };
-
-            const onMouseUp = function() {
-                if (self.isDragging && self.selectedElement) {
-                    const rect = self.selectedElement.select('rect');
-                    const newX = parseFloat(rect.attr('x'));
-                    const rectWidth = parseFloat(rect.attr('width'));
-
-                    const newStartDateTime = self.timeScale.invert(newX);
-                    const newEndDateTime = self.timeScale.invert(newX + rectWidth);
-
-                    d.startDate = timeFormat("%d-%m-%Y")(newStartDateTime);
-                    d.startTime = timeFormat("%H:%M:%S")(newStartDateTime);
-                    d.endDate = timeFormat("%d-%m-%Y")(newEndDateTime);
-                    d.endTime = timeFormat("%H:%M:%S")(newEndDateTime);
-                    console.log(d);
-
-                    self.updateEventPosition(self.selectedElement, d);
-                    self.removeSVG();
-                    self.createChart();
-                }
-
-                document.removeEventListener('mousemove', onMouseMove);
-                document.removeEventListener('mouseup', onMouseUp);
-                self.selectedElement = null;
-                self.isDragging = false;
-            };
-
-            document.addEventListener('mousemove', onMouseMove);
-            document.addEventListener('mouseup', onMouseUp);
-        });
-    }
-
-    updateEventPosition(eventGroup: any, eventData: any) {
-        const rect = eventGroup.select('rect#element');
-
-        const newX = this.timeScale(this.dateFormat(`${eventData.startDate} ${eventData.startTime}`));
-        const newWidth = this.timeScale(this.dateFormat(`${eventData.endDate} ${eventData.endTime}`)) - newX;
-
-        rect.attr('x', newX)
-            .attr('width', newWidth);
-
-        const titleText = eventGroup.select('text:nth-of-type(1)');
-        const detailsText = eventGroup.select('text:nth-of-type(2)');
-
-        titleText.attr('x', newX + 8);
-        detailsText.attr('x', newX + 8);
-    }
-
-    resizableEvents() { 
-        // TODO: implement resizable events
-    }
-
-    makeGrid() {
-        var xAxis = axisTop(this.timeScale)
+        const xAxis = axisTop(this.timeScale)
             .ticks(timeDay)
-            .tickSize(-this.height + this.topPadding)
+            .tickSize(-this.dimensions.height + this.dimensions.topPadding)
             .tickSizeOuter(0)
+            .tickFormat(this.getTickFormat());
 
-            if (this.view === 'day') {
-                xAxis.tickFormat((domainValue: any) => timeFormat('%A')(domainValue as Date));
-            } else if (this.view === 'week') {
-                xAxis.tickFormat((domainValue: any) => timeFormat('%d %b')(domainValue as Date));
-            } else {
-                xAxis.tickFormat((domainValue: any) => timeFormat('%d')(domainValue as Date));
-            }
-    
         this.svg.append('g')
             .attr('class', 'grid')
-            .attr('transform', 'translate(0, ' + (this.topPadding - this.gutter/2) + ')')
+            .attr('transform', `translate(0, ${this.dimensions.topPadding - this.dimensions.gutter / 2})`)
             .call(xAxis)
             .selectAll("text")
             .style("text-anchor", "middle")
@@ -263,197 +289,246 @@ export class GanttChartComponent implements AfterViewInit, OnChanges {
             .attr("dx", "2em");
     }
 
-    drawTableShadow() {
-        this.svg.append("g")
-        .selectAll("rect")
-        .data(this.events)
-        .enter()
-        .append("rect")
-        .attr("x", 0)
-        .attr("y", (d: any, i: any) => {
-            return i * this.eventsGap + this.topPadding -2;
-        })
-        .attr("width", (d: any) => {
-            return this.width;
-        })
-        .attr("height", this.eventsGap)
-        .attr("stroke", "none")
-        .attr("fill", (d: any) => {
-            for (var i = 0; i < this.tableRows.length; i++) {
-                if (d.rowId == this.tableRows[i].id) {
-                    if( i%2 == 0 ){
-                        return '#BDBDBD';
-                    }
-                }
-            }
-            return '#000';
-        })
-        .attr("opacity", 0.1);
+    private getTickFormat(): (domainValue: any) => string {
+        const view = this.view();
+        
+        switch (view) {
+            case 'day':
+                return (domainValue: any) => timeFormat('%A')(domainValue as Date);
+            case 'week':
+                return (domainValue: any) => timeFormat('%d %b')(domainValue as Date);
+            default:
+                return (domainValue: any) => timeFormat('%d')(domainValue as Date);
+        }
     }
 
-    drawEvents() {
-        var eventGroups = this.svg.append('g')
-            .selectAll('g')
-            .data(this.events)
+    private drawTableShadow(): void {
+        if (!this.svg) return;
+
+        this.svg.append("g")
+            .selectAll("rect")
+            .data(this.rowMetrics())
+            .enter()
+            .append("rect")
+            .attr("x", 0)
+            .attr("y", (d: RowMetric) => d.startY - 2)
+            .attr("width", this.dimensions.width)
+            .attr("height", (d: RowMetric) => d.height)
+            .attr("stroke", "none")
+            .attr("fill", (d: RowMetric, i: number) => i % 2 === 0 ? '#BDBDBD' : '#000')
+            .attr("opacity", 0.1);
+    }
+
+    private drawEvents(): void {
+        if (!this.svg || !this.dateFormat) return;
+
+        const eventGroups: Selection<SVGGElement, ProcessedEvent, SVGGElement, unknown> = this.svg.append('g')
+            .selectAll<SVGGElement, ProcessedEvent>('g')
+            .data(this.flatEvents())
             .enter()
             .append('g')
             .attr('class', 'event-group')
             .style('cursor', 'pointer');
 
         eventGroups.append('rect')
-            .attr("id", "element")
-            .attr("x", (d: any) => {        
-                return this.timeScale(this.dateFormat(`${d.startDate} ${d.startTime}`));
-            })
-            .attr("y", (d: any, i: any) => {
-                return i * this.eventsGap + this.topPadding;
-            })
-            .attr("width", (d: any) => {
-                return (this.timeScale(this.dateFormat(`${d.endDate} ${d.endTime}`)) - this.timeScale(this.dateFormat(`${d.startDate} ${d.startTime}`)));
-            })
-            .attr("height", this.eventHeight)
-            .attr("stroke", "none")
-            .attr("fill", (d: any) => {
-                for (var i = 0; i < this.tableRows.length; i++) {
-                    if (d.rowId == this.tableRows[i].id) {
-                        return d.color;
-                    }
+            .attr("class", "event-rect")
+            .attr("x", (d: ProcessedEvent) => this.timeScale(this.dateFormat(`${d.startDate} ${d.startTime}`)))
+            .attr("y", (d: ProcessedEvent) => d.y)
+            .attr("width", (d: ProcessedEvent) => {
+                const startTime = this.dateFormat(`${d.startDate} ${d.startTime}`);
+                const endTime = this.dateFormat(`${d.endDate} ${d.endTime}`);
+                if (startTime && endTime) {
+                    return this.timeScale(endTime) - this.timeScale(startTime);
                 }
+                return 0;
             })
+            .attr("height", this.dimensions.eventHeight)
+            .attr("stroke", "none")
+            .attr("fill", (d: ProcessedEvent) => d.color)
             .attr("rx", 8)
-            .attr("ry", 8)
-            .style("cursor", "pointer");
+            .attr("ry", 8);
 
         eventGroups.append("text")
-            .text((d: any) => d.title.toUpperCase())
-            .attr("x", (d: any) => {
-                return this.timeScale(this.dateFormat(`${d.startDate} ${d.startTime}`)) + 8;
-            })
-            .attr("y", (d: any, i: any) => {
-                return i * this.eventsGap + this.topPadding + 20;
-            })
+            .attr("class", "event-title")
+            .text((d: ProcessedEvent) => d.title.toUpperCase())
+            .attr("x", (d: ProcessedEvent) => this.timeScale(this.dateFormat(`${d.startDate} ${d.startTime}`)) + 8)
+            .attr("y", (d: ProcessedEvent) => d.y + 20)
             .attr("font-size", 14)
             .attr("text-anchor", "start")
-            .attr("fill", "#000")
+            .attr("fill", "#000");
 
         eventGroups.append("text")
-            .text((d: any) => {
+            .attr("class", "event-time")
+            .text((d: ProcessedEvent) => {
                 const startTime = d.startTime.split(':').slice(0, 2).join(':');
                 const endTime = d.endTime.split(':').slice(0, 2).join(':');
-                return `${startTime} - ${endTime}`;})
-            .attr("x", (d: any) => {
-                return this.timeScale(this.dateFormat(`${d.startDate} ${d.startTime}`)) + 8;
+                return `${startTime} - ${endTime}`;
             })
-            .attr("y", (d: any, i: any) => {
-                return i * this.eventsGap + this.topPadding + 35;
-            })
+            .attr("x", (d: ProcessedEvent) => this.timeScale(this.dateFormat(`${d.startDate} ${d.startTime}`)) + 8)
+            .attr("y", (d: ProcessedEvent) => d.y + 35)
             .attr("font-size", 12)
             .attr("text-anchor", "start")
-            .attr("fill", "#555")
+            .attr("fill", "#555");
 
         eventGroups.append("text")
+            .attr("class", "event-edit")
             .text('✏️')
-            .attr("x", (d: any) => {
-                return this.timeScale(this.dateFormat(`${d.startDate} ${d.startTime}`)) + 8 + this.timeScale(this.dateFormat(`${d.endDate} ${d.endTime}`)) - this.timeScale(this.dateFormat(`${d.startDate} ${d.startTime}`)) - 20;
-            })
-            .attr("y", (d: any, i: any) => {
-                return i * this.eventsGap + this.topPadding + (this.eventHeight / 2);
-            })
+            .attr("x", (d: ProcessedEvent) => this.timeScale(this.dateFormat(`${d.endDate} ${d.endTime}`)) - 12)
+            .attr("y", (d: ProcessedEvent) => d.y + (this.dimensions.eventHeight / 2))
             .attr("dy", "0.35em")
             .attr("font-size", 20)
             .attr("text-anchor", "end")
             .attr("fill", "#000")
             .style("cursor", "pointer")
-            .on('click', (event: any, d: any) => {
+            .on('click', (event: Event, d: ProcessedEvent) => {
                 event.stopPropagation();
                 this.eventClicked.emit(d);
-                console.log('Edit clicked for event:', d);
             });
-
     }
 
-    vertLabelsSvg() {
+    private createVerticalLabels(): void {
         const element = this.chartVertLabelsContainer.nativeElement;
 
         this.verticalLabelsSVG = select(element)
             .append("svg")
             .attr("width", 80)
-            .attr("height", this.height)
+            .attr("height", this.dimensions.height)
             .attr("class", "svg");
 
-            var preveventsGap = 0;
-
-            this.verticalLabelsSVG.append("g")
-                .selectAll("text")
-                .data(this.numOccurances)
-                .enter()
-                .append("text")
-                .text((d: any) => {
-                    const row = this.tableRows.find(row => row.id === d[0]);
-                    return row ? row.title : 'Not Found';
-                })
-                .attr("x", 10)
-                .attr("y", (d: any, i: any) => {
-                    if (i > 0) {
-                        for (var j = 0; j < i; j++) {
-                            preveventsGap += this.numOccurances[i - 1][1];
-                            return d[1] * this.eventsGap / 2 + preveventsGap * this.eventsGap + this.topPadding;
-                        }
-                    } else {
-                        return d[1] * this.eventsGap / 2 + this.topPadding;
-                    }
-                    return
-                })
-                .attr("font-size", 16)
-                .attr("text-anchor", "start")
-                .attr("text-height", 14)
-                .attr("fill", (d: any) => {
-                    for (var i = 0; i < this.tableRows.length; i++) {
-                        if (d[0] == this.tableRows[i].id) {
-                            return '#000';
-                        }
-                    }
-                    return '#000';
-                });
+        this.verticalLabelsSVG.append("g")
+            .selectAll("text")
+            .data(this.rowMetrics())
+            .enter()
+            .append("text")
+            .text((d: RowMetric) => d.title)
+            .attr("x", 10)
+            .attr("y", (d: RowMetric) => d.startY + d.height / 2)
+            .attr("font-size", 16)
+            .attr("text-anchor", "start")
+            .attr("fill", '#000');
     }
 
-    /*
-    * It will order the events by the order of the tableRows
-    */
-    orderEventsByRows(events: any[], rows: any[]) {
-        const rowOrderMap = rows.reduce((map: { [x: string]: any; }, row: { id: string | number; }, index: any) => {
-            map[row.id] = index;
-            return map;
-        }, {});
-    
-        events.sort((a: { rowId: string | number; }, b: { rowId: string | number; }) => {
-            return rowOrderMap[a.rowId] - rowOrderMap[b.rowId];
+    private drawTitle(): void {
+        if (!this.svg) return;
+
+        this.svg.append("text")
+            .text(this.title())
+            .attr("x", this.dimensions.width / 2)
+            .attr("y", 24)
+            .attr("text-anchor", "middle")
+            .attr("font-size", 18)
+            .attr("fill", "#009FFC");
+    }
+
+    private setupEventInteractions(): void {
+        if (!this.svg) return;
+
+        const eventGroups: Selection<SVGGElement, ProcessedEvent, SVGSVGElement, unknown> = this.svg.selectAll<SVGGElement, ProcessedEvent>('g.event-group');
+        
+        // Store reference to this component for use in event handlers
+        const componentRef = this;
+        
+        eventGroups.on('mousedown', function(event: MouseEvent, d: ProcessedEvent) {
+            componentRef.handleDragStart(event, d, this);
         });
     }
 
-    /*
-    * It will calculate the number of occurrences of events for each tableRow
-    */
-    calculateNumOccurrences(events: any[], rows: any[]): void {
-        this.numOccurances = rows.map(row => {
-            const count = events.filter(event => event.rowId === row.id).length;
-            return [row.id, count];
+    private handleDragStart(event: MouseEvent, d: ProcessedEvent, element: SVGGElement): void {
+        this.dragState.selectedElement = select(element) as Selection<SVGGElement, ProcessedEvent, any, unknown>;
+        this.dragState.startX = event.clientX;
+        this.dragState.startY = event.clientY;
+
+        const rect = this.dragState.selectedElement.select('rect') as Selection<SVGRectElement, ProcessedEvent, any, unknown>;
+        const initialRectX = parseFloat(rect.attr('x'));
+        const initialRectY = parseFloat(rect.attr('y'));
+
+        const onMouseMove = (moveEvent: MouseEvent) => {
+            this.handleDragMove(moveEvent, rect, initialRectX, initialRectY);
+        };
+
+        const onMouseUp = () => {
+            this.handleDragEnd(d, rect);
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        };
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+    }
+
+    private handleDragMove(
+        moveEvent: MouseEvent, 
+        rect: Selection<SVGRectElement, ProcessedEvent, any, unknown>, 
+        initialRectX: number, 
+        initialRectY: number
+    ): void {
+        if (!this.dragState.selectedElement) return;
+
+        this.dragState.isDragging = true;
+        const dx = moveEvent.clientX - this.dragState.startX;
+        let newRectX = initialRectX + dx;
+
+        const rectWidth = parseFloat(rect.attr('width'));
+        newRectX = Math.max(0, Math.min(newRectX, this.dimensions.width - rectWidth));
+
+        rect.attr('x', newRectX);
+        
+        const texts = this.dragState.selectedElement.selectAll('text') as Selection<SVGTextElement, ProcessedEvent, any, unknown>;
+        const componentRef = this;
+        
+        texts.attr('x', function(textData: ProcessedEvent, i: number) {
+            return i === 2 ? newRectX + rectWidth - 20 : newRectX + 8;
+        }).attr('y', function(textData: ProcessedEvent, i: number) {
+            return textData.y + (i === 0 ? 20 : i === 1 ? 35 : componentRef.dimensions.eventHeight / 2);
         });
     }
 
-    calculateHeight(): void {
-        this.height = this.topPadding + this.events.length * (this.eventsGap);
+    private handleDragEnd(d: ProcessedEvent, rect: Selection<SVGRectElement, ProcessedEvent, any, unknown>): void {
+        if (!this.dragState.isDragging || !this.dragState.selectedElement) {
+            this.resetDragState();
+            return;
+        }
+
+        const newX = parseFloat(rect.attr('x'));
+        const rectWidth = parseFloat(rect.attr('width'));
+
+        const newStartDateTime = this.timeScale.invert(newX);
+        const newEndDateTime = this.timeScale.invert(newX + rectWidth);
+
+        this.updateEventData(d, newStartDateTime, newEndDateTime);
+        this.redrawChart();
+        this.resetDragState();
     }
 
-    generatePDF() {
-        const gantContainer = this.chartContainer.nativeElement.parentElement;
-        if (!gantContainer) return;
+    private updateEventData(event: ProcessedEvent, newStartDateTime: Date, newEndDateTime: Date): void {
+        const eventsData = this.events();
+        const eventGroup = eventsData.find(group => group.rowId === event.rowId);
+        
+        if (eventGroup) {
+            const eventToUpdate = eventGroup.events.find((e: any) => e.id === event.id);
+            if (eventToUpdate) {
+                eventToUpdate.startDate = timeFormat("%d-%m-%Y")(newStartDateTime);
+                eventToUpdate.startTime = timeFormat("%H:%M:%S")(newStartDateTime);
+                eventToUpdate.endDate = timeFormat("%d-%m-%Y")(newEndDateTime);
+                eventToUpdate.endTime = timeFormat("%H:%M:%S")(newEndDateTime);
+            }
+        }
+    }
 
-        html2canvas(gantContainer).then((canvas: { toDataURL: (arg0: string) => any; width: any; height: any; }) => {
+    private resetDragState(): void {
+        this.dragState.selectedElement = null;
+        this.dragState.isDragging = false;
+    }
+
+    generatePDF(): void {
+        const ganttContainer = this.chartContainer.nativeElement.parentElement;
+        if (!ganttContainer) return;
+
+        html2canvas(ganttContainer).then((canvas) => {
             const imgData = canvas.toDataURL('image/png');
             const pdf = new jsPDF('l', 'pt', [canvas.width, canvas.height]);
             pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
-            pdf.save(`gantt-chart.pdf`);
+            pdf.save('gantt-chart.pdf');
         });
     }
 }

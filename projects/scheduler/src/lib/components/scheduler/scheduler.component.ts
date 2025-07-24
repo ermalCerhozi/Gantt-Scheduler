@@ -1,4 +1,4 @@
-import { Component, EventEmitter, inject, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
+import { Component, inject, input, output, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DateChangeService } from '../../services/date-change.service';
 import { SchedulerDayViewComponent } from '../scheduler-day-view/scheduler-day-view.component';
@@ -41,86 +41,91 @@ import { MatNativeDateModule } from '@angular/material/core';
     styleUrl: './scheduler.component.scss',
     standalone: true
 })
+export class ResourceSchedulerComponent {
+    private readonly tableRowSourceService = inject(TableRowSourceService);
+    private readonly dateChangeService = inject(DateChangeService);
+    private readonly dialog = inject(MatDialog);
 
-export class ResourceSchedulerComponent implements OnInit, OnChanges {
-    tableRowSourceService = inject(TableRowSourceService);
-    dateChangeService = inject(DateChangeService);
-    dialog = inject(MatDialog);
+    readonly tableRows = input.required<any[]>();
+    readonly events = input.required<any[]>();
+    readonly weekends = input.required<any[]>();
+    readonly holidays = input.required<any[]>();
+    readonly activeView = input.required<string>();
 
-    @Input('TableRows') tableRows!: any[];
-    @Input('Events') events!: any[];
-    @Input('Weekends') weekends!: any[];
-    @Input('Holidays') holidays!: any[];
-    @Input('ActiveView') activeView!: string;
+    readonly onSetDate = output<string>();
+    readonly onDownload = output<void>();
+    readonly onEventClick = output<any>();
 
-    @Output('ViewChange') onViewChange = new EventEmitter<string>();
-    @Output('Previous') onPrevious = new EventEmitter<void>();
-    @Output('Today') onToday = new EventEmitter<void>();
-    @Output('Next') onNext = new EventEmitter<void>();
-    @Output('SetDate') onSetDate = new EventEmitter<string>();
-    @Output('Download') onDownload = new EventEmitter<void>();
-    @Output('EventClick') onEventClick = new EventEmitter<any>();
+    readonly goToDateValue = signal<Date | null>(null);
+    readonly currentActiveView = signal<string>('');
 
-    public viewButtons: ViewButton[] = [
+    get goToDateValueModel(): Date | null {
+        return this.goToDateValue();
+    }
+
+    set goToDateValueModel(value: Date | null) {
+        this.goToDateValue.set(value);
+    }
+
+    get currentActiveViewModel(): string {
+        return this.currentActiveView();
+    }
+
+    set currentActiveViewModel(value: string) {
+        this.currentActiveView.set(value);
+    }
+
+    public readonly viewButtons: ViewButton[] = [
         { id: 'month', name: 'Month' },
         { id: 'week', name: 'Week' },
         { id: 'day', name: 'Day' }
     ];
 
-    goToDateValue: Date | null = null;
+    constructor() {
+        effect(() => {
+            const currentEvents = this.events();
+            this.tableRowSourceService.setEvents(currentEvents);
+        });
 
-    ngOnChanges(changes: SimpleChanges) {
-        if (changes['events'] && !changes['events'].isFirstChange()) {
-            if (changes['events'].previousValue !== changes['events'].currentValue) {
-                this.tableRowSourceService.setEvents(this.events);
-            }
-        }
-        if (changes['weekends'] && !changes['weekends'].isFirstChange()) {
-            if (changes['weekends'].previousValue !== changes['weekends'].currentValue) {
-                this.tableRowSourceService.setWeekends(this.weekends);
-            }
-        }
-        if (changes['holidays'] && !changes['holidays'].isFirstChange()) {
-            if (changes['holidays'].previousValue !== changes['holidays'].currentValue) {
-                this.tableRowSourceService.setHolidays(this.holidays);
-            }
-        }
-        if (changes['tableRows'] && !changes['tableRows'].isFirstChange()) {
-            if (changes['tableRows'].previousValue !== changes['tableRows'].currentValue) {
-                this.tableRowSourceService.setTableRows(this.tableRows);
-            }
-        }
-    }
+        effect(() => {
+            const currentWeekends = this.weekends();
+            this.tableRowSourceService.setWeekends(currentWeekends);
+        });
 
-    ngOnInit() {
-        this.tableRowSourceService.setEvents(this.events);
-        this.tableRowSourceService.setWeekends(this.weekends);
-        this.tableRowSourceService.setHolidays(this.holidays);
-        this.tableRowSourceService.setTableRows(this.tableRows);
+        effect(() => {
+            const currentHolidays = this.holidays();
+            this.tableRowSourceService.setHolidays(currentHolidays);
+        });
+
+        effect(() => {
+            const currentTableRows = this.tableRows();
+            this.tableRowSourceService.setTableRows(currentTableRows);
+        });
+
+        effect(() => {
+            const view = this.activeView();
+            this.currentActiveView.set(view);
+        });
     }
 
     viewChangeHandler(view: any) {
-        this.activeView = view;
-        this.onViewChange.emit(view);
-        this.goToDateValue = null;
+        this.currentActiveView.set(view);
+        this.goToDateValue.set(null);
     }
 
     previousHandler() {
         this.dateChangeService.previous();
-        this.onPrevious.emit();
-        this.goToDateValue = null;
+        this.goToDateValue.set(null);
     }
 
     nextHandler() {
         this.dateChangeService.next();
-        this.onNext.emit();
-        this.goToDateValue = null;
+        this.goToDateValue.set(null);
     }
 
     todayHandler() {
         this.dateChangeService.today();
-        this.onToday.emit();
-        this.goToDateValue = null;
+        this.goToDateValue.set(null);
     }
 
     updateEvent(event: any[]) {
@@ -129,7 +134,7 @@ export class ResourceSchedulerComponent implements OnInit, OnChanges {
 
     goToDate(date: Date) {
         this.dateChangeService.setDate(date);
-        this.onSetDate.emit(this.activeView);
+        this.onSetDate.emit(this.currentActiveView());
     }
 
     downloadHandler() {

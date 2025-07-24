@@ -1,14 +1,11 @@
-import { Component, OnInit, OnDestroy, inject, ViewChild, ElementRef } from '@angular/core';
-import { Subscription } from 'rxjs';
+import { Component, OnInit, inject, signal, effect, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { DateChangeService } from '../../services/date-change.service';
 import { StaticValuesService } from '../../services/static-values.service';
 import { TableRowSourceService } from '../../services/table-row-source.service';
 import { SchedulerEventHandler } from '../../core/schedulerEventHandler';
 
-/*
-  * This contains the base logic for the scheduler that will be tailored to the specific view day, week, month.
-*/
 @Component({
     selector: 'lib-scheduler-base-view',
     template: ``,
@@ -21,79 +18,102 @@ import { SchedulerEventHandler } from '../../core/schedulerEventHandler';
         TableRowSourceService
     ]
 })
-export class SchedulerBaseViewComponent implements OnInit, OnDestroy, SchedulerEventHandler {
-    @ViewChild('chart') private chartContainer!: ElementRef;
+export class SchedulerBaseViewComponent implements OnInit, SchedulerEventHandler {
+
+    public dateChangeService = inject(DateChangeService);
+    public staticValuesService = inject(StaticValuesService);
+    public tableRowSourceService = inject(TableRowSourceService);
+    public destroyRef = inject(DestroyRef);
+
+    public _weekends = signal<any[]>([]);
+    public _holidays = signal<any[]>([]);
     
-    private _weekends: string[] = [];
-    private _holidays: string[] = [];
-
-    private nextSubscription: Subscription | null = null;
-    private prevSubscription: Subscription | null = null;
-    private todaySubscription: Subscription | null = null;
-    private setDateSubscription: Subscription | null = null;
-    private downloadSubscription: Subscription | null = null;
-    private tableRowSubscription: Subscription | null = null;
-    private eventsSubscription: Subscription | null = null;
-    private holidaysSubscription: Subscription | null = null;
-    private weekendsSubscription: Subscription | null = null;
-
-    dateChangeService = inject(DateChangeService);
-    staticValuesService = inject(StaticValuesService);
-    tableRowSourceService = inject(TableRowSourceService);
-
-    today = this.staticValuesService.today();
-
-    set weekends(value: any[]) {
-        this._weekends = value;
-    }
+    readonly today = this.staticValuesService.today();
 
     get weekends(): any[] {
-        return this._weekends;
+        return this._weekends();
     }
 
-    set holidays(value: any[]) {
-        this._holidays = value;
+    set weekends(value: any[]) {
+        this._weekends.set(value);
     }
 
     get holidays(): any[] {
-        return this._holidays;
+        return this._holidays();
+    }
+
+    set holidays(value: any[]) {
+        this._holidays.set(value);
+    }
+
+    constructor() {
+        effect(() => {
+            const nextTrigger = this.dateChangeService.nextTrigger();
+            if (nextTrigger > 0) {
+                this.nextButtonHandler();
+                this.eventChangesHandler();
+            }
+        });
+
+        effect(() => {
+            const previousTrigger = this.dateChangeService.previousTrigger();
+            if (previousTrigger > 0) {
+                this.previousButtonHandler();
+                this.eventChangesHandler();
+            }
+        });
+
+        effect(() => {
+            const todayTrigger = this.dateChangeService.todayTrigger();
+            if (todayTrigger > 0) {
+                this.todayButtonHandler();
+                this.eventChangesHandler();
+            }
+        });
+
+        effect(() => {
+            const currentDate = this.dateChangeService.currentDate();
+            if (currentDate) {
+                this.setDateButtonHandler(currentDate);
+                this.eventChangesHandler();
+            }
+        });
+
+        effect(() => {
+            const downloadTrigger = this.dateChangeService.downloadTrigger();
+            if (downloadTrigger > 0) {
+                this.downloadButtonHandler();
+            }
+        });
     }
 
     ngOnInit() {
         this.todayButtonHandler();
 
-        this.nextSubscription = this.dateChangeService.onNext().subscribe(() => {
-            this.nextButtonHandler();
-            this.eventChangesHandler();
-        });
-        this.prevSubscription = this.dateChangeService.onPrevious().subscribe(() => {
-            this.previousButtonHandler();
-            this.eventChangesHandler();
-        });
-        this.todaySubscription = this.dateChangeService.onToday().subscribe(() => {
-            this.todayButtonHandler();
-            this.eventChangesHandler();
-        });
-        this.setDateSubscription = this.dateChangeService.onSetDate().subscribe((date) => {
-            this.setDateButtonHandler(date);
-            this.eventChangesHandler();
-        });
-        this.downloadSubscription = this.dateChangeService.onDownload().subscribe(() => {
-            this.downloadButtonHandler();
-        });
-        this.tableRowSubscription = this.tableRowSourceService.tableRowChanges().subscribe(() => {
-            this.tableRowChangesHandler();
-            this.eventChangesHandler();
-        });
-        this.eventsSubscription = this.tableRowSourceService.eventChanges().subscribe(() => {
-            this.eventChangesHandler();
-        });
-        this.holidaysSubscription = this.tableRowSourceService.holidayChanges().subscribe((value) => {
-            this.holidays = value;
-        });
-        this.weekendsSubscription = this.tableRowSourceService.weekendChanges().subscribe((value) => {
-            this.weekends = value;
-        });
+        this.tableRowSourceService.tableRowChanges()
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe(() => {
+                this.tableRowChangesHandler();
+                this.eventChangesHandler();
+            });
+
+        this.tableRowSourceService.eventChanges()
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe(() => {
+                this.eventChangesHandler();
+            });
+
+        this.tableRowSourceService.holidayChanges()
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe((value) => {
+                this.holidays = value;
+            });
+
+        this.tableRowSourceService.weekendChanges()
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe((value) => {
+                this.weekends = value;
+            });
     }
 
     todayButtonHandler() { }
@@ -103,16 +123,4 @@ export class SchedulerBaseViewComponent implements OnInit, OnDestroy, SchedulerE
     downloadButtonHandler() { }
     eventChangesHandler() { }
     tableRowChangesHandler() { }
-
-    ngOnDestroy() {
-        this.nextSubscription?.unsubscribe();
-        this.prevSubscription?.unsubscribe();
-        this.todaySubscription?.unsubscribe();
-        this.setDateSubscription?.unsubscribe();
-        this.downloadSubscription?.unsubscribe();
-        this.tableRowSubscription?.unsubscribe();
-        this.eventsSubscription?.unsubscribe();
-        this.holidaysSubscription?.unsubscribe();
-        this.weekendsSubscription?.unsubscribe();
-    }
 }

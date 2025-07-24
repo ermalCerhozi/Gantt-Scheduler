@@ -7,15 +7,11 @@
 </div>
 
 <scheduler
-    [TableRows]="tableRows"
-    [Events]="events"
-    [Weekends]="weekEnds"
-    [Holidays]="holidays"
-    [ActiveView]="'month'"
-    (ViewChange)="onViewChange($event)"
-    (Previous)="onPrevius()"
-    (Today)="onToday()"
-    (Next)="onNext()"
-    (SetDate)="onSetDate($event)"
-    (EventClick)="onEventClick($event)"
+    [tableRows]="tableRows"
+    [events]="events"
+    [weekends]="weekEnds"
+    [holidays]="holidays"
+    [activeView]="'month'"
+    (onSetDate)="onSetDate($event)"
+    (onEventClick)="onEventClick($event)"
 ></scheduler>
