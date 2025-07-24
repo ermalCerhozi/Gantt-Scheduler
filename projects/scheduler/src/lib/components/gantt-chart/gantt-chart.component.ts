@@ -82,11 +82,8 @@ export class GanttChartComponent implements AfterViewInit {
         eventsGap: 52
     };
 
-    private readonly shouldRedraw = computed(() => {
+    private readonly timeRangeChanged = computed(() => {
         return {
-            tableRows: this.tableRows(),
-            events: this.events(),
-            title: this.title(),
             view: this.view(),
             year: this.year(),
             month: this.month(),
@@ -97,22 +94,47 @@ export class GanttChartComponent implements AfterViewInit {
         };
     });
 
+    private readonly dataChanged = computed(() => {
+        return {
+            tableRows: this.tableRows(),
+            events: this.events()
+        };
+    });
+
+    private readonly titleChanged = computed(() => {
+        return this.title();
+    });
+
     constructor() {
         effect(() => {
+            this.dataChanged();
             this.processAndFlattenEvents();
+            
+            if (this.chartInitialized()) {
+                if (!this.svg) {
+                    this.createChart();
+                } else {
+                    this.updateEventsAndLabels();
+                }
+            }
         });
 
         effect(() => {
-            this.shouldRedraw();
+            this.timeRangeChanged();
             if (this.chartInitialized()) {
                 this.redrawChart();
+            }
+        });
+
+        effect(() => {
+            this.titleChanged();
+            if (this.chartInitialized() && this.svg) {
+                this.updateTitle();
             }
         });
     }
 
     ngAfterViewInit() {
-        this.processAndFlattenEvents();
-        this.createChart();
         this.chartInitialized.set(true);
     }
 
@@ -158,8 +180,12 @@ export class GanttChartComponent implements AfterViewInit {
     }
 
     private removeSVG(): void {
+        if (this.chartContainer?.nativeElement) {
         select(this.chartContainer.nativeElement).select("svg").remove();
+        }
+        if (this.chartVertLabelsContainer?.nativeElement) {
         select(this.chartVertLabelsContainer.nativeElement).select("svg").remove();
+        }
         this.svg = null;
         this.verticalLabelsSVG = null;
     }
@@ -169,6 +195,42 @@ export class GanttChartComponent implements AfterViewInit {
             this.removeSVG();
             this.createChart();
         }
+    }
+
+    private updateEventsAndLabels(): void {
+        if (!this.svg || !this.verticalLabelsSVG) return;
+
+        this.svg.selectAll('.event-group').remove();
+        this.svg.selectAll('.table-shadow').remove();
+        this.verticalLabelsSVG.selectAll('text').remove();
+
+        this.drawTableShadow();
+        this.drawEvents();
+        this.setupEventInteractions();
+        this.updateVerticalLabels();
+    }
+
+    private updateTitle(): void {
+        if (!this.svg) return;
+        
+        this.svg.select('.chart-title').remove();
+        this.drawTitle();
+    }
+
+    private updateVerticalLabels(): void {
+        if (!this.verticalLabelsSVG) return;
+
+        this.verticalLabelsSVG.selectAll('text').remove();
+        
+        this.verticalLabelsSVG.append("g")
+            .selectAll("text")
+            .data(this.rowMetrics())
+            .enter()
+            .append("text")
+            .text((d: RowMetric) => this.truncateText(d.title, 70, 16))
+            .attr("x", 10)
+            .attr("y", (d: RowMetric) => d.startY + d.height / 2)
+            .attr("font-size", 16);
     }
 
     private createChart(): void {
@@ -182,6 +244,8 @@ export class GanttChartComponent implements AfterViewInit {
         if (this.svg) {
             return;
         }
+
+        this.removeSVG();
 
         this.initializeSVG();
         this.setupTimeScale();
@@ -306,6 +370,7 @@ export class GanttChartComponent implements AfterViewInit {
         if (!this.svg) return;
 
         this.svg.append("g")
+            .attr("class", "table-shadow")
             .selectAll("rect")
             .data(this.rowMetrics())
             .enter()
@@ -426,21 +491,14 @@ export class GanttChartComponent implements AfterViewInit {
             .attr("height", this.dimensions.height)
             .attr("class", "svg");
 
-        this.verticalLabelsSVG.append("g")
-            .selectAll("text")
-            .data(this.rowMetrics())
-            .enter()
-            .append("text")
-            .text((d: RowMetric) => this.truncateText(d.title, 70, 16))
-            .attr("x", 10)
-            .attr("y", (d: RowMetric) => d.startY + d.height / 2)
-            .attr("font-size", 16)
+        this.updateVerticalLabels();
     }
 
     private drawTitle(): void {
         if (!this.svg) return;
 
         this.svg.append("text")
+            .attr("class", "chart-title")
             .text(this.title())
             .attr("x", this.dimensions.width / 2)
             .attr("y", 24)
@@ -530,8 +588,10 @@ export class GanttChartComponent implements AfterViewInit {
         const newStartDateTime = this.timeScale.invert(newX);
         const newEndDateTime = this.timeScale.invert(newX + rectWidth);
 
+        console.log('BEFORE:', d.startDate, d.startTime, '-', d.endDate, d.endTime);
+        console.log('AFTER:', timeFormat("%d-%m-%Y")(newStartDateTime), timeFormat("%H:%M:%S")(newStartDateTime), '-', timeFormat("%d-%m-%Y")(newEndDateTime), timeFormat("%H:%M:%S")(newEndDateTime));
+
         this.updateEventData(d, newStartDateTime, newEndDateTime);
-        this.redrawChart();
         this.resetDragState();
     }
 
