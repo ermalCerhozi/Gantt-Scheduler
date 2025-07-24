@@ -319,6 +319,18 @@ export class GanttChartComponent implements AfterViewInit {
             .attr("opacity", 0.1);
     }
 
+    private truncateText(text: string, maxWidth: number, fontSize: number): string {
+        const avgCharWidth = fontSize * 0.6;
+        const maxChars = Math.floor(maxWidth / avgCharWidth);
+        
+        if (text.length <= maxChars) {
+            return text;
+        }
+        
+        return text.substring(0, maxChars - 3) + '...';
+        
+    }
+
     private drawEvents(): void {
         if (!this.svg || !this.dateFormat) return;
 
@@ -350,35 +362,54 @@ export class GanttChartComponent implements AfterViewInit {
 
         eventGroups.append("text")
             .attr("class", "event-title")
-            .text((d: ProcessedEvent) => d.title.toUpperCase())
             .attr("x", (d: ProcessedEvent) => this.timeScale(this.dateFormat(`${d.startDate} ${d.startTime}`)) + 8)
             .attr("y", (d: ProcessedEvent) => d.y + 20)
             .attr("font-size", 14)
-            .attr("text-anchor", "start")
-            .attr("fill", "#000");
+            .attr("clip-path", (d: ProcessedEvent) => `url(#clip-${d.id})`)
+            .text((d: ProcessedEvent) => {
+                const startTime = this.dateFormat(`${d.startDate} ${d.startTime}`);
+                const endTime = this.dateFormat(`${d.endDate} ${d.endTime}`);
+                if (startTime && endTime) {
+                    const eventWidth = this.timeScale(endTime) - this.timeScale(startTime);
+                    const availableWidth = eventWidth - 30;
+                    return this.truncateText(d.title.toUpperCase(), availableWidth, 14);
+                }
+                return d.title.toUpperCase();
+            });
 
         eventGroups.append("text")
             .attr("class", "event-time")
-            .text((d: ProcessedEvent) => {
-                const startTime = d.startTime.split(':').slice(0, 2).join(':');
-                const endTime = d.endTime.split(':').slice(0, 2).join(':');
-                return `${startTime} - ${endTime}`;
-            })
             .attr("x", (d: ProcessedEvent) => this.timeScale(this.dateFormat(`${d.startDate} ${d.startTime}`)) + 8)
             .attr("y", (d: ProcessedEvent) => d.y + 35)
             .attr("font-size", 12)
-            .attr("text-anchor", "start")
-            .attr("fill", "#555");
+            .attr("fill", "#555")
+            .attr("clip-path", (d: ProcessedEvent) => `url(#clip-${d.id})`)
+            .text((d: ProcessedEvent) => {
+                const startTime = d.startTime.split(':').slice(0, 2).join(':');
+                const endTime = d.endTime.split(':').slice(0, 2).join(':');
+                const timeText = `${startTime} - ${endTime}`;
+                
+                const startDateTime = this.dateFormat(`${d.startDate} ${d.startTime}`);
+                const endDateTime = this.dateFormat(`${d.endDate} ${d.endTime}`);
+                if (startDateTime && endDateTime) {
+                    const eventWidth = this.timeScale(endDateTime) - this.timeScale(startDateTime);
+                    const availableWidth = eventWidth - 30;
+                    return this.truncateText(timeText, availableWidth, 12);
+                }
+                return timeText;
+            });
 
         eventGroups.append("text")
             .attr("class", "event-edit")
             .text('✏️')
-            .attr("x", (d: ProcessedEvent) => this.timeScale(this.dateFormat(`${d.endDate} ${d.endTime}`)) - 12)
+            .attr("x", (d: ProcessedEvent) => {
+                const endTime = this.dateFormat(`${d.endDate} ${d.endTime}`);
+                return endTime ? this.timeScale(endTime) - 15 : 0;
+            })
             .attr("y", (d: ProcessedEvent) => d.y + (this.dimensions.eventHeight / 2))
             .attr("dy", "0.35em")
-            .attr("font-size", 20)
-            .attr("text-anchor", "end")
-            .attr("fill", "#000")
+            .attr("font-size", 16)
+            .attr("text-anchor", "middle")
             .style("cursor", "pointer")
             .on('click', (event: Event, d: ProcessedEvent) => {
                 event.stopPropagation();
@@ -400,12 +431,10 @@ export class GanttChartComponent implements AfterViewInit {
             .data(this.rowMetrics())
             .enter()
             .append("text")
-            .text((d: RowMetric) => d.title)
+            .text((d: RowMetric) => this.truncateText(d.title, 70, 16))
             .attr("x", 10)
             .attr("y", (d: RowMetric) => d.startY + d.height / 2)
             .attr("font-size", 16)
-            .attr("text-anchor", "start")
-            .attr("fill", '#000');
     }
 
     private drawTitle(): void {
@@ -442,6 +471,9 @@ export class GanttChartComponent implements AfterViewInit {
         const initialRectX = parseFloat(rect.attr('x'));
         const initialRectY = parseFloat(rect.attr('y'));
 
+        // Disable text selection globally during drag
+        document.body.style.userSelect = 'none';
+
         const onMouseMove = (moveEvent: MouseEvent) => {
             this.handleDragMove(moveEvent, rect, initialRectX, initialRectY);
         };
@@ -450,6 +482,9 @@ export class GanttChartComponent implements AfterViewInit {
             this.handleDragEnd(d, rect);
             document.removeEventListener('mousemove', onMouseMove);
             document.removeEventListener('mouseup', onMouseUp);
+            
+            // Re-enable text selection globally
+            document.body.style.userSelect = '';
         };
 
         document.addEventListener('mousemove', onMouseMove);

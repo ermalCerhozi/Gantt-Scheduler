@@ -12,6 +12,7 @@
     [weekends]="weekEnds"
     [holidays]="holidays"
     [activeView]="'month'"
-    (onSetDate)="onSetDate($event)"
+    (onSave)="save($event)"
+    (onDateChange)="getEventsOfDate($event)"
     (onEventClick)="onEventClick($event)"
 ></scheduler>

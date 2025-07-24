@@ -20,7 +20,7 @@ export class AppComponent {
         { id: 1, title: 'Alice' },
         { id: 2, title: 'Bob' },
         { id: 3, title: 'Charlie' },
-        { id: 4, title: 'Diana' }
+        { id: 4, title: 'Diana mire' }
     ];
 
     public events: any[] = [
@@ -140,8 +140,12 @@ export class AppComponent {
 
     public weekEnds: number[] = [0, 6];
 
-    onSetDate(date: any): void {
-        console.log('AppComponent Set Date', date);
+    save(data: any): void {
+        console.log('AppComponent save data', data);
+    }
+
+    getEventsOfDate(date: Event): void {
+        console.log('AppComponent Get Events of Date', date);
     }
 
     onEventClick(event: any): void {
