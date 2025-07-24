@@ -1,5 +1,5 @@
-import { AfterViewInit, Component, ElementRef, effect, input, output, signal, ViewChild, computed, DestroyRef, inject } from "@angular/core";
-import { select, timeParse, scaleTime, axisTop, timeFormat, timeDay, Selection, BaseType } from 'd3';
+import { AfterViewInit, Component, ElementRef, effect, input, output, signal, ViewChild, computed } from "@angular/core";
+import { select, timeParse, scaleTime, axisTop, timeFormat, timeDay, Selection } from 'd3';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
@@ -42,15 +42,13 @@ export class GanttChartComponent implements AfterViewInit {
     @ViewChild('chart') private chartContainer!: ElementRef<HTMLElement>;
     @ViewChild('chartVertLabels') private chartVertLabelsContainer!: ElementRef<HTMLElement>;
 
-    private readonly destroyRef = inject(DestroyRef);
-
     readonly tableRows = input<any[]>([]);
     readonly events = input<any[]>([]);
     readonly title = input<string>('');
     readonly view = input<string>('month');
     readonly year = input<number>(new Date().getFullYear());
     readonly month = input<number>(new Date().getMonth() + 1);
-    readonly daysOfMonth = input<number>(31);
+    readonly daysOfMonth = input<number>(0);
     readonly startOfWeek = input<string>('');
     readonly endOfWeek = input<string>('');
     readonly day = input<number>(1);
@@ -59,7 +57,6 @@ export class GanttChartComponent implements AfterViewInit {
 
     private readonly flatEvents = signal<ProcessedEvent[]>([]);
     private readonly rowMetrics = signal<RowMetric[]>([]);
-    private readonly chartInitialized = signal<boolean>(false);
 
     private svg: Selection<SVGSVGElement, unknown, null, undefined> | null = null;
     private verticalLabelsSVG: Selection<SVGSVGElement, unknown, null, undefined> | null = null;
@@ -110,7 +107,7 @@ export class GanttChartComponent implements AfterViewInit {
             this.dataChanged();
             this.processAndFlattenEvents();
             
-            if (this.chartInitialized()) {
+            if (this.isViewInitialized()) {
                 if (!this.svg) {
                     this.createChart();
                 } else {
@@ -121,21 +118,26 @@ export class GanttChartComponent implements AfterViewInit {
 
         effect(() => {
             this.timeRangeChanged();
-            if (this.chartInitialized()) {
+            if (this.isViewInitialized()) {
                 this.redrawChart();
             }
         });
 
         effect(() => {
             this.titleChanged();
-            if (this.chartInitialized() && this.svg) {
+            if (this.isViewInitialized() && this.svg) {
                 this.updateTitle();
             }
         });
     }
 
     ngAfterViewInit() {
-        this.chartInitialized.set(true);
+        this.processAndFlattenEvents();
+        this.createChart();
+    }
+
+    private isViewInitialized(): boolean {
+        return !!(this.chartContainer?.nativeElement && this.chartVertLabelsContainer?.nativeElement);
     }
 
     private processAndFlattenEvents(): void {
@@ -237,7 +239,7 @@ export class GanttChartComponent implements AfterViewInit {
         const events = this.flatEvents();
         const tableRowsData = this.tableRows();
 
-        if (!tableRowsData?.length || !events.length) {
+        if (!tableRowsData?.length || !events.length || !this.isViewInitialized()) {
             return;
         }
 
@@ -336,11 +338,28 @@ export class GanttChartComponent implements AfterViewInit {
     private makeGrid(): void {
         if (!this.svg) return;
 
-        const xAxis = axisTop(this.timeScale)
-            .ticks(timeDay)
-            .tickSize(-this.dimensions.height + this.dimensions.topPadding)
-            .tickSizeOuter(0)
-            .tickFormat(this.getTickFormat());
+        const view = this.view();
+        let xAxis;
+
+        if (view === 'day') {
+            xAxis = axisTop(this.timeScale)
+                .ticks(24)
+                .tickSize(-this.dimensions.height + this.dimensions.topPadding)
+                .tickSizeOuter(0)
+                .tickFormat((domainValue: any) => {
+                    const hour = (domainValue as Date).getHours();
+                    return hour === 0 ? '12am' : 
+                        hour < 12 ? `${hour}am` : 
+                        hour === 12 ? '12pm' : 
+                        `${hour - 12}pm`;
+                });
+        } else {
+            xAxis = axisTop(this.timeScale)
+                .ticks(timeDay)
+                .tickSize(-this.dimensions.height + this.dimensions.topPadding)
+                .tickSizeOuter(0)
+                .tickFormat(this.getTickFormat());
+        }
 
         this.svg.append('g')
             .attr('class', 'grid')
@@ -350,7 +369,7 @@ export class GanttChartComponent implements AfterViewInit {
             .style("text-anchor", "middle")
             .attr("stroke", "none")
             .attr("font-size", 14)
-            .attr("dx", "2em");
+            .attr("dx", view === 'day' ? "0" : "2em");
     }
 
     private getTickFormat(): (domainValue: any) => string {
