@@ -1,5 +1,4 @@
-import { Component, OnInit, inject, signal, effect, DestroyRef } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Component, OnInit, inject, signal, effect, untracked } from '@angular/core';
 
 import { DateChangeService } from '../../services/date-change.service';
 import { StaticValuesService } from '../../services/static-values.service';
@@ -23,97 +22,61 @@ export class SchedulerBaseViewComponent implements OnInit, SchedulerEventHandler
     public dateChangeService = inject(DateChangeService);
     public staticValuesService = inject(StaticValuesService);
     public tableRowSourceService = inject(TableRowSourceService);
-    public destroyRef = inject(DestroyRef);
 
-    public _weekends = signal<any[]>([]);
-    public _holidays = signal<any[]>([]);
+    readonly weekends = signal<any[]>([]);
+    readonly holidays = signal<any[]>([]);
     
     readonly today = this.staticValuesService.today();
-
-    get weekends(): any[] {
-        return this._weekends();
-    }
-
-    set weekends(value: any[]) {
-        this._weekends.set(value);
-    }
-
-    get holidays(): any[] {
-        return this._holidays();
-    }
-
-    set holidays(value: any[]) {
-        this._holidays.set(value);
-    }
 
     constructor() {
         effect(() => {
             const nextTrigger = this.dateChangeService.nextTrigger();
             if (nextTrigger > 0) {
-                this.nextButtonHandler();
-                this.eventChangesHandler();
+                untracked(() => this.nextButtonHandler());
             }
         });
 
         effect(() => {
             const previousTrigger = this.dateChangeService.previousTrigger();
             if (previousTrigger > 0) {
-                this.previousButtonHandler();
-                this.eventChangesHandler();
+                untracked(() => this.previousButtonHandler());
             }
         });
 
         effect(() => {
             const todayTrigger = this.dateChangeService.todayTrigger();
             if (todayTrigger > 0) {
-                this.todayButtonHandler();
-                this.eventChangesHandler();
+                untracked(() => this.todayButtonHandler());
             }
         });
 
         effect(() => {
             const currentDate = this.dateChangeService.currentDate();
             if (currentDate) {
-                this.setDateButtonHandler(currentDate);
-                this.eventChangesHandler();
+                untracked(() => this.setDateButtonHandler(currentDate));
             }
         });
 
         effect(() => {
             const downloadTrigger = this.dateChangeService.downloadTrigger();
             if (downloadTrigger > 0) {
-                this.downloadButtonHandler();
+                untracked(() => this.downloadButtonHandler());
             }
+        });
+
+        effect(() => {
+            const serviceHolidays = this.tableRowSourceService.holidays();
+            untracked(() => this.holidays.set(serviceHolidays));
+        });
+
+        effect(() => {
+            const serviceWeekends = this.tableRowSourceService.weekends();
+            untracked(() => this.weekends.set(serviceWeekends));
         });
     }
 
     ngOnInit() {
         this.todayButtonHandler();
-
-        this.tableRowSourceService.tableRowChanges()
-            .pipe(takeUntilDestroyed(this.destroyRef))
-            .subscribe(() => {
-                this.tableRowChangesHandler();
-                this.eventChangesHandler();
-            });
-
-        this.tableRowSourceService.eventChanges()
-            .pipe(takeUntilDestroyed(this.destroyRef))
-            .subscribe(() => {
-                this.eventChangesHandler();
-            });
-
-        this.tableRowSourceService.holidayChanges()
-            .pipe(takeUntilDestroyed(this.destroyRef))
-            .subscribe((value) => {
-                this.holidays = value;
-            });
-
-        this.tableRowSourceService.weekendChanges()
-            .pipe(takeUntilDestroyed(this.destroyRef))
-            .subscribe((value) => {
-                this.weekends = value;
-            });
     }
 
     todayButtonHandler() { }
@@ -121,6 +84,4 @@ export class SchedulerBaseViewComponent implements OnInit, SchedulerEventHandler
     nextButtonHandler() { }
     setDateButtonHandler(date: Date) { }
     downloadButtonHandler() { }
-    eventChangesHandler() { }
-    tableRowChangesHandler() { }
 }

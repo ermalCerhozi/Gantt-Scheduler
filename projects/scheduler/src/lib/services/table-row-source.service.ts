@@ -1,63 +1,33 @@
-import { Injectable } from '@angular/core';
-import { BehaviorSubject } from 'rxjs';
-import { EventEmitter } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 
 @Injectable({
   providedIn: 'root'
 })
 export class TableRowSourceService {
-    private events = new BehaviorSubject<any[]>([]);
-    public tableRows = new BehaviorSubject<any[]>([]);
-    private holidays = new BehaviorSubject<any[]>([]);
-    private weekends = new BehaviorSubject<any[]>([]);
-
-    eventSelect = new EventEmitter<any>();
+    readonly events = signal<any[]>([]);
+    readonly tableRows = signal<any[]>([]);
+    readonly holidays = signal<any[]>([]);
+    readonly weekends = signal<any[]>([]);
+    
+    readonly selectedEvent = signal<any>(null);
 
     setEvents(events: any[]) {
-        this.events.next(events);
-        console.log('TableRowSourceService Events changed:', events);
+        this.events.set(events);
     }
 
     setTableRows(tableRows: any[]) {
-        this.tableRows.next(tableRows);
-        console.log('TableRowSourceService TableRows changed:', tableRows);
+        this.tableRows.set(tableRows);
     }
 
     setHolidays(holidays: any[]) {
-        this.holidays.next(holidays);
-        console.log('TableRowSourceService Holidays changed:', holidays);
+        this.holidays.set(holidays);
     }
 
     setWeekends(weekends: any[]) {
-        this.weekends.next(weekends);
-        console.log('TableRowSourceService Weekends changed:', weekends);
-    }
-
-    tableRowChanges() {
-        return this.tableRows.asObservable();
-    }
-
-    eventChanges() {
-        return this.events.asObservable();
-    }
-
-    holidayChanges() {
-        return this.holidays.asObservable();
-    }
-
-    weekendChanges() {
-        return this.weekends.asObservable();
+        this.weekends.set(weekends);
     }
 
     onEventSelect(e: any) {
-        this.eventSelect.emit(e);
-    }
-
-    getEvents() {
-        return this.events.value;
-    }
-    
-    getTableRows() {
-        return this.tableRows.value;
+        this.selectedEvent.set(e);
     }
 }

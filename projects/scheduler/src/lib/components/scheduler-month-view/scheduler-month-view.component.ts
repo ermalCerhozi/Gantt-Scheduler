@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, ViewChild } from '@angular/core';
+import { Component, output, signal, effect, computed, viewChild, untracked } from '@angular/core';
 import { SchedulerBaseViewComponent } from '../scheduler-base-view/scheduler-base-view.component';
 import { SchedulerEventHandler } from '../../core/schedulerEventHandler';
 import { GanttChartComponent } from '../gantt-chart/gantt-chart.component';
@@ -11,75 +11,77 @@ import { GanttChartComponent } from '../gantt-chart/gantt-chart.component';
     standalone: true
 })
 export class SchedulerMonthViewComponent extends SchedulerBaseViewComponent implements SchedulerEventHandler {
-    @Output('eventClicked') eventClicked = new EventEmitter<any>();
-    @ViewChild('ganttChart') ganttChart!: GanttChartComponent;
+    readonly eventClicked = output<any>();
+    readonly ganttChart = viewChild<GanttChartComponent>('ganttChart');
 
-    month: number = 0;
-    year: number = 0;
-    monthsOfYear: string[] = [];
-    title: string = '';
+    readonly month = signal<number>(0);
+    readonly year = signal<number>(0);
+    readonly title = signal<string>('');
+    readonly daysOfMonth = signal<number>(0);
 
-    tableRows: any[] = [];
-    events: any[] = [];
+    readonly monthsOfYear: string[];
 
-    daysOfMonth: number = 0;
+    readonly tableRows = computed(() => this.tableRowSourceService.tableRows());
+    readonly events = computed(() => this.tableRowSourceService.events());
 
     constructor() {
         super();
         this.monthsOfYear = this.staticValuesService.getMonthsOfYear();
-    }
 
-    calculateCurrentDate() {
-        this.daysOfMonth = this.staticValuesService.getDaysOfMonth(this.year, this.month);
-        const month = this.monthsOfYear[this.month - 1];
-        this.title = month + ' ' + this.year;
-    }
-
-    override todayButtonHandler() {
-        this.month = this.staticValuesService.getCurrentMonth();
-        this.year = this.staticValuesService.getCurrentYear();
-        this.calculateCurrentDate();
-    }
-
-    override previousButtonHandler() {
-        this.month--;
-        if (this.month < 1) {
-            this.month = 12;
-            this.year--;
-        }
-        this.calculateCurrentDate();
-    }
-
-    override nextButtonHandler() {
-        this.month++;
-        if (this.month > 12) {
-            this.month = 1;
-            this.year++;
-        }
-        this.calculateCurrentDate();
-    }
-
-    override setDateButtonHandler(date: Date) {
-        this.month = date.getMonth() + 1;
-        this.year = date.getFullYear();
-        this.calculateCurrentDate();
-    }
-
-    override eventChangesHandler() {
-        this.events = [];
-        this.tableRowSourceService.eventChanges().subscribe((events) => {
-            this.events = events;
+        effect(() => {
+            if (this.month() && this.year()) {
+                untracked(() => this.calculateCurrentDate());
+            }
         });
     }
 
-    override tableRowChangesHandler() {
-        this.tableRows = [];
-        this.tableRows = this.tableRowSourceService.getTableRows();
+    private calculateCurrentDate() {
+        const currentMonth = this.month();
+        const currentYear = this.year();
+        
+        this.daysOfMonth.set(this.staticValuesService.getDaysOfMonth(currentYear, currentMonth));
+        const monthName = this.monthsOfYear[currentMonth - 1];
+        this.title.set(`${monthName} ${currentYear}`);
+    }
+
+    override todayButtonHandler() {
+        this.month.set(this.staticValuesService.getCurrentMonth());
+        this.year.set(this.staticValuesService.getCurrentYear());
+    }
+
+    override previousButtonHandler() {
+        const currentMonth = this.month();
+        const currentYear = this.year();
+        
+        if (currentMonth <= 1) {
+            this.month.set(12);
+            this.year.set(currentYear - 1);
+        } else {
+            this.month.set(currentMonth - 1);
+        }
+    }
+
+    override nextButtonHandler() {
+        const currentMonth = this.month();
+        const currentYear = this.year();
+        
+        if (currentMonth >= 12) {
+            this.month.set(1);
+            this.year.set(currentYear + 1);
+        } else {
+            this.month.set(currentMonth + 1);
+        }
+    }
+
+    override setDateButtonHandler(date: Date) {
+        this.month.set(date.getMonth() + 1);
+        this.year.set(date.getFullYear());
     }
 
     override downloadButtonHandler() {
-        if (this.ganttChart) {
-            this.ganttChart.generatePDF();
+        const chart = this.ganttChart();
+        if (chart) {
+            chart.generatePDF();
         }
     }
 

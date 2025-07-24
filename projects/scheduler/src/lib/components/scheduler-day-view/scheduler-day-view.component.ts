@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output } from '@angular/core';
+import { Component, output, signal, effect, computed } from '@angular/core';
 import { SchedulerBaseViewComponent } from '../../components/scheduler-base-view/scheduler-base-view.component';
 import { GanttChartComponent } from '../gantt-chart/gantt-chart.component';
 
@@ -10,95 +10,105 @@ import { GanttChartComponent } from '../gantt-chart/gantt-chart.component';
     standalone: true
 })
 export class SchedulerDayViewComponent extends SchedulerBaseViewComponent {
-    @Output('eventClicked') eventClicked = new EventEmitter<any>();
+    readonly eventClicked = output<any>();
 
-    year: number = 0;
-    month: number = 0;
-    week: number = 0;
-    day: number = 0;
-    currentDate: string = '';
-    title: string = '';
+    readonly year = signal<number>(0);
+    readonly month = signal<number>(0);
+    readonly week = signal<number>(0);
+    readonly day = signal<number>(0);
+    readonly currentDate = signal<string>('');
+    readonly title = signal<string>('');
 
-    hoursOfDay: string[] = [];
-    daysOfweek: string[] = [];
-    monthsOfYear: string[] = [];
-    dateSplitter: string = '';
+    readonly hoursOfDay: string[] = [];
+    readonly daysOfweek: string[];
+    readonly monthsOfYear: string[];
+    readonly dateSplitter: string;
 
-    tableRows: any[] = [];
-    events: any[] = [];
+    readonly tableRows = computed(() => this.tableRowSourceService.tableRows());
+    readonly events = computed(() => this.tableRowSourceService.events());
 
     constructor() {
         super();
         this.daysOfweek = this.staticValuesService.getDaysOfWeek();
         this.monthsOfYear = this.staticValuesService.getMonthsOfYear();
         this.dateSplitter = this.staticValuesService.getDateSplitter();
-    }
 
-    calculateCurrentDate() {
-        let date = this.staticValuesService.getDateOfDay(this.year, this.week, this.day);
-        this.currentDate = this.staticValuesService.transformDate(+date.split(this.dateSplitter)[0], date.split(this.dateSplitter)[1], date.split(this.dateSplitter)[2])
-
-        const dayIndex = this.getDayIndex(this.day);
-        const month = this.monthsOfYear[+date.split(this.dateSplitter)[1] - 1];
-        this.title = `${this.daysOfweek[dayIndex]} ${+date.split(this.dateSplitter)[2]} ${month} ${"Year"} ${this.year}`;
-    }
-
-    override todayButtonHandler() {
-        this.day = this.staticValuesService.getCurrentDay();
-        this.week = this.staticValuesService.getCurrentWeek();
-        this.month = this.staticValuesService.getCurrentMonth();
-        this.year = this.staticValuesService.getCurrentYear();
-        this.calculateCurrentDate();
-    }
-
-    override previousButtonHandler() {
-        this.day--;
-        if (this.day < 0) {
-        this.day = 6;
-        this.week--;
-        if (this.week < 1) {
-            this.year--;
-            this.week = this.staticValuesService.getWeeksOfYear(this.year);
-        }
-        }
-        this.calculateCurrentDate();
-    }
-
-    override nextButtonHandler() {
-        this.day++;
-        if (this.day > 6) {
-        this.day = 0;
-        this.week++;
-        const weeksOfYear = this.staticValuesService.getWeeksOfYear(this.year);
-        if (this.week > weeksOfYear) {
-            this.week = 1;
-            this.year++;
-        }
-        }
-        this.calculateCurrentDate();
-    }
-
-    override setDateButtonHandler(date: Date) {
-        this.year = date.getFullYear();
-        this.month = date.getMonth() + 1;
-        this.week = this.staticValuesService.getWeekOfDate(date);
-        this.day = date.getDay();
-        this.calculateCurrentDate();
-    }
-
-    override eventChangesHandler() {
-        this.events = [];
-        this.tableRowSourceService.eventChanges().subscribe((events) => {
-            this.events = events;
+        effect(() => {
+            if (this.year() && this.week() !== undefined && this.day() !== undefined) {
+                this.calculateCurrentDate();
+            }
         });
     }
 
-    override tableRowChangesHandler() {
-        this.tableRows = [];
-        this.tableRows = this.tableRowSourceService.getTableRows();
+    private calculateCurrentDate() {
+        const date = this.staticValuesService.getDateOfDay(this.year(), this.week(), this.day());
+        const currentDate = this.staticValuesService.transformDate(
+            +date.split(this.dateSplitter)[0], 
+            date.split(this.dateSplitter)[1], 
+            date.split(this.dateSplitter)[2]
+        );
+        
+        this.currentDate.set(currentDate);
+
+        const dayIndex = this.getDayIndex(this.day());
+        const month = this.monthsOfYear[+date.split(this.dateSplitter)[1] - 1];
+        const title = `${this.daysOfweek[dayIndex]} ${+date.split(this.dateSplitter)[2]} ${month} Year ${this.year()}`;
+        
+        this.title.set(title);
     }
 
-    getDayIndex(index: number): number {
+    override todayButtonHandler() {
+        this.day.set(this.staticValuesService.getCurrentDay());
+        this.week.set(this.staticValuesService.getCurrentWeek());
+        this.month.set(this.staticValuesService.getCurrentMonth());
+        this.year.set(this.staticValuesService.getCurrentYear());
+    }
+
+    override previousButtonHandler() {
+        const currentDay = this.day();
+        const currentWeek = this.week();
+        const currentYear = this.year();
+        
+        if (currentDay <= 0) {
+            this.day.set(6);
+            if (currentWeek <= 1) {
+                this.year.set(currentYear - 1);
+                this.week.set(this.staticValuesService.getWeeksOfYear(currentYear - 1));
+            } else {
+                this.week.set(currentWeek - 1);
+            }
+        } else {
+            this.day.set(currentDay - 1);
+        }
+    }
+
+    override nextButtonHandler() {
+        const currentDay = this.day();
+        const currentWeek = this.week();
+        const currentYear = this.year();
+        
+        if (currentDay >= 6) {
+            this.day.set(0);
+            const weeksOfYear = this.staticValuesService.getWeeksOfYear(currentYear);
+            if (currentWeek >= weeksOfYear) {
+                this.week.set(1);
+                this.year.set(currentYear + 1);
+            } else {
+                this.week.set(currentWeek + 1);
+            }
+        } else {
+            this.day.set(currentDay + 1);
+        }
+    }
+
+    override setDateButtonHandler(date: Date) {
+        this.year.set(date.getFullYear());
+        this.month.set(date.getMonth() + 1);
+        this.week.set(this.staticValuesService.getWeekOfDate(date));
+        this.day.set(date.getDay());
+    }
+
+    private getDayIndex(index: number): number {
         return (index + 1) % 7;
     }
 

@@ -1,9 +1,9 @@
 <gantt-chart
-    [tableRows]="tableRows"
-    [events]="events"
-    [title]="title"
+    [tableRows]="tableRows()"
+    [events]="events()"
+    [title]="title()"
     [view]="'week'"
-    [startOfWeek]="startOfWeek"
-    [endOfWeek]="endOfWeek"
+    [startOfWeek]="startOfWeek()"
+    [endOfWeek]="endOfWeek()"
     (eventClicked)="updateEvent($event)"
 ></gantt-chart>
