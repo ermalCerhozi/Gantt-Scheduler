@@ -1,5 +1,5 @@
 import { AfterViewInit, Component, ElementRef, effect, input, output, signal, ViewChild, computed } from "@angular/core";
-import { select, timeParse, scaleTime, axisTop, timeFormat, timeDay, Selection } from 'd3';
+import { select, timeParse, scaleTime, axisTop, timeFormat, timeDay, timeHour, Selection } from 'd3';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
@@ -343,7 +343,7 @@ export class GanttChartComponent implements AfterViewInit {
 
         if (view === 'day') {
             xAxis = axisTop(this.timeScale)
-                .ticks(24)
+                .ticks(timeHour.every(1))
                 .tickSize(-this.dimensions.height + this.dimensions.topPadding)
                 .tickSizeOuter(0)
                 .tickFormat((domainValue: any) => {
@@ -361,6 +361,11 @@ export class GanttChartComponent implements AfterViewInit {
                 .tickFormat(this.getTickFormat());
         }
 
+        let dxValue = "0em";
+        if (view === 'week') dxValue = "6em";
+        else if (view === 'month') dxValue = "1.5em";
+        else if (view === 'day') dxValue = "2em";
+
         this.svg.append('g')
             .attr('class', 'grid')
             .attr('transform', `translate(0, ${this.dimensions.topPadding - this.dimensions.gutter / 2})`)
@@ -369,7 +374,7 @@ export class GanttChartComponent implements AfterViewInit {
             .style("text-anchor", "middle")
             .attr("stroke", "none")
             .attr("font-size", 14)
-            .attr("dx", view === 'day' ? "0" : "2em");
+            .attr("dx", dxValue);
     }
 
     private getTickFormat(): (domainValue: any) => string {

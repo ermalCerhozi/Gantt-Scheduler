@@ -52,7 +52,7 @@ export class SchedulerDayViewComponent extends SchedulerBaseViewComponent {
 
         const dayIndex = this.getDayIndex(this.day());
         const month = this.monthsOfYear[+date.split(this.dateSplitter)[1] - 1];
-        const title = `${this.daysOfweek[dayIndex]} ${+date.split(this.dateSplitter)[2]} ${month} Year ${this.year()}`;
+        const title = `${this.daysOfweek[dayIndex]} ${+date.split(this.dateSplitter)[2]} ${month}, ${this.year()}`;
         
         this.title.set(title);
     }
