@@ -138,8 +138,8 @@ export class AppComponent {
                     rowId: 4,
                     startDate: "24-07-2025",
                     endDate: "24-07-2025",
-                    startTime: '09:00:00',
-                    endTime: '19:00:00',
+                    startTime: '12:00:00',
+                    endTime: '14:00:00',
                     color: '#81C784',
                 },
             ]
@@ -147,7 +147,6 @@ export class AppComponent {
     ];
 
     public holidays: string[] = [];
-
     public weekEnds: number[] = [0, 6];
 
     save(data: any): void {
@@ -158,7 +157,7 @@ export class AppComponent {
         console.log('AppComponent Get Events of Date', date);
     }
 
-    onEventClick(event: any): void {
+    updateEvent(event: any): void {
         const dialogRef = this.dialog.open(EventUpdateComponent, {
             data: {
                 event: event,
@@ -168,10 +167,30 @@ export class AppComponent {
 
         dialogRef.afterClosed().subscribe(result => {
             if (result) {
-                const index = this.events.findIndex(event => event.id === result.id);
-                if (index !== -1) {
-                    this.events[index] = result;
-                    this.events = [...this.events];
+                const rowGroupIndex = this.events.findIndex(row => 
+                    row.events.some((e: any) => e.id === result.id)
+                );
+                
+                if (rowGroupIndex !== -1) {
+                    const eventIndex = this.events[rowGroupIndex].events.findIndex((e: any) => e.id === result.id);
+                    if (eventIndex !== -1) {
+                        if (this.events[rowGroupIndex].rowId !== result.rowId) {
+                            this.events[rowGroupIndex].events.splice(eventIndex, 1);
+                            const targetRowGroupIndex = this.events.findIndex(row => row.rowId === result.rowId);
+                            if (targetRowGroupIndex !== -1) {
+                                this.events[targetRowGroupIndex].events.push(result);
+                            } else {
+                                this.events.push({
+                                    rowId: result.rowId,
+                                    events: [result]
+                                });
+                            }
+                            this.events = this.events.filter(row => row.events.length > 0);
+                        } else {
+                            this.events[rowGroupIndex].events[eventIndex] = result;
+                        }
+                        this.events = [...this.events];
+                    }
                 }
             }
         });
@@ -184,7 +203,21 @@ export class AppComponent {
 
         dialogRef.afterClosed().subscribe(result => {
             if (result) {
-                this.events = [...this.events, result];
+                const newEventId = Math.max(...this.events.flatMap(row => row.events.map((e: any) => e.id))) + 1;
+                const newEvent = {
+                    ...result,
+                    id: newEventId
+                };
+                const rowGroupIndex = this.events.findIndex(row => row.rowId === result.rowId);
+                if (rowGroupIndex !== -1) {
+                    this.events[rowGroupIndex].events.push(newEvent);
+                } else {
+                    this.events.push({
+                        rowId: result.rowId,
+                        events: [newEvent]
+                    });
+                }
+                this.events = [...this.events];
             }
         });
     }

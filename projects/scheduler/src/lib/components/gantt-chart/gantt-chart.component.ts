@@ -275,15 +275,13 @@ export class GanttChartComponent implements AfterViewInit {
                         new Date(this.year(), this.month() - 1, this.day() + 1)
                     ])
                     .range([0, this.dimensions.width - 1]);
-                console.log('Time scale for day view:', this.timeScale.domain());
-                break;
-                
-            case 'week':
-                const { startDate, endDate } = this.parseWeekDates();
+                    break;
+                    
+                case 'week':
+                    const { startDate, endDate } = this.parseWeekDates();
                 this.timeScale = scaleTime()
                     .domain([startDate, new Date(endDate.getTime() + 24 * 60 * 60 * 1000)])
                     .range([0, this.dimensions.width - 1]);
-                console.log('Time scale for week view:', this.timeScale.domain());
                 break;
                 
             case 'month':
