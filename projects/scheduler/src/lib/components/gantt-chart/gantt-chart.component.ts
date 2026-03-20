@@ -271,8 +271,8 @@ export class GanttChartComponent implements AfterViewInit {
             case 'day':
                 this.timeScale = scaleTime()
                     .domain([
-                        new Date(this.year(), this.month() - 1, this.day()),
-                        new Date(this.year(), this.month() - 1, this.day() + 1)
+                        new Date(this.year(), this.month() - 1, this.day(), 9,0,0),
+                        new Date(this.year(), this.month() - 1, this.day(), 18,0,0)
                     ])
                     .range([0, this.dimensions.width - 1]);
                     break;
